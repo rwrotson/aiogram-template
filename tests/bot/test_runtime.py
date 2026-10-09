@@ -89,6 +89,16 @@ async def test_webhook_requires_secret_and_processes_before_ack(
             ) as response:
                 assert response.status == 200
         feed.assert_awaited_once()
+        feed.side_effect = RuntimeError("handler failed")
+        async with (
+            ClientSession() as session,
+            session.post(
+                url,
+                json={"update_id": 2},
+                headers={"X-Telegram-Bot-Api-Secret-Token": "webhook-secret"},
+            ) as response,
+        ):
+            assert response.status == 500
         set_webhook = cast("AsyncMock", bot.set_webhook)
         set_webhook.assert_awaited_once()
         assert set_webhook.await_args is not None

@@ -53,7 +53,7 @@ dev = [
     "pytest-randomly>=5.0.0",
     "pytest-timeout>=2.4.0",
     "ruff>=0.16.10",
-    "watchfiles>=1.0.0",
+    "watchfiles>=1.2.0",
 ]
 docs = [
     "mkdocs-gen-files>=0.6.1",
