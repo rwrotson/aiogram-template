@@ -3,11 +3,11 @@
 Create a bot with BotFather and copy `.env.example` to `.env`. Replace `APP_BOT_TOKEN` with the bot's token. Then run:
 
 ```bash
-uv sync --all-extras --all-groups
+uv sync
 uv run poe serve
 ```
 
-The default polling mode removes an old webhook without dropping pending updates. Send `/start` and `/help` to see the command examples. `/faq commands` and `/faq storage` read answers from the in-memory FAQ example. `/survey` asks for a programming language and a framework; `/cancel` clears an unfinished survey. The FSM uses process memory unless `APP_REDIS__DSN` is set and the `redis` extra is installed.
+The basic install needs no database or optional storage drivers. The default polling mode removes an old webhook without dropping pending updates. Send `/start` and `/help` to see the command examples. `/faq commands` and `/faq storage` read answers from the in-memory FAQ example. `/survey` asks for a programming language and a framework; `/cancel` clears an unfinished survey. The FSM uses process memory unless `APP_REDIS__DSN` is set and the `redis` extra is installed.
 
 The operational aiohttp server is local by default:
 
@@ -22,6 +22,7 @@ For webhook mode, set `APP_UPDATE_MODE=webhook`, `APP_WEBHOOK_URL` to a public H
 ## Quality checks
 
 ```bash
+uv sync --all-extras --all-groups
 uv run poe check
 uv run poe test-fast
 uv run --all-extras --group docs mkdocs build --strict

@@ -19,7 +19,7 @@ Create a bot with [BotFather](https://t.me/BotFather), then install [uv](https:/
 ```bash
 cp .env.example .env
 # Set APP_BOT_TOKEN in .env to the real token.
-uv sync --all-extras --all-groups
+uv sync
 uv run poe serve
 ```
 
@@ -30,7 +30,7 @@ curl http://127.0.0.1:8000/live
 curl http://127.0.0.1:8000/ready
 ```
 
-`/ready` checks Telegram, update registration, and configured storage backends. `/live` checks only the local process. With no `APP_REDIS__DSN`, survey state is lost on restart. To persist it, install the `redis` extra and set `APP_REDIS__DSN`; Redis FSM state expires after seven days by default. Other storage backends are optional; see [storage](docs/storage.md).
+The basic install needs no database or optional storage drivers. `/ready` checks Telegram, update registration, and configured storage backends. `/live` checks only the local process. With no `APP_REDIS__DSN`, survey state is lost on restart. To persist it, run `uv sync --extra redis` and set `APP_REDIS__DSN`; Redis FSM state expires after seven days by default. Other storage backends are optional; see [storage](docs/storage.md).
 
 ## Webhook mode
 
@@ -39,6 +39,7 @@ Set `APP_UPDATE_MODE=webhook`, `APP_WEBHOOK_URL=https://bot.example.com/telegram
 ## Development and deployment
 
 ```bash
+uv sync --all-extras --all-groups
 uv run poe check
 uv run poe fmt
 uv run --all-extras --group docs mkdocs build --strict
