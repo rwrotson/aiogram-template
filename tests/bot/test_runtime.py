@@ -292,6 +292,31 @@ async def test_polling_startup_failure_closes_fsm(
     cast("AsyncMock", bot.session.close).assert_awaited_once()
 
 
+async def test_polling_shutdown_failure_does_not_delay_cleanup(
+    settings: Settings, bot: Bot, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    application = create_app(settings, bot)
+    started = asyncio.Event()
+
+    async def record_startup(**_kwargs: object) -> None:
+        started.set()
+
+    async def fail_shutdown(**_kwargs: object) -> None:
+        raise RuntimeError("shutdown failed")
+
+    async def wait_for_stop(*_args: object, **_kwargs: object) -> None:
+        await asyncio.Event().wait()
+
+    application.dispatcher.startup.register(record_startup)
+    application.dispatcher.shutdown.register(fail_shutdown)
+    monkeypatch.setattr(application.dispatcher, "_polling", wait_for_stop)
+    await application.start()
+    await asyncio.wait_for(started.wait(), timeout=2)
+    await asyncio.wait_for(application.stop(), timeout=2)
+    cast("AsyncMock", bot.session.close).assert_awaited_once()
+    assert application.storage.handles == {}
+
+
 async def test_webhook_shutdown_hook_failure_still_closes_resources(
     settings: Settings, bot: Bot
 ) -> None:

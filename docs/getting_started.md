@@ -17,7 +17,7 @@ curl http://127.0.0.1:8000/ready
 curl http://127.0.0.1:8000/metrics
 ```
 
-For webhook mode, set `APP_UPDATE_MODE=webhook`, `APP_WEBHOOK_URL` to a public HTTPS URL with a path, and `APP_WEBHOOK_SECRET` to a random printable ASCII value. Route only that path from your TLS proxy to the aiohttp port. The application registers the webhook and commands with Telegram, retrying on transient failures.
+For webhook mode, set `APP_UPDATE_MODE=webhook`, `APP_WEBHOOK_URL` to a public HTTPS URL with a path, and `APP_WEBHOOK_SECRET` to a random value of 1–256 ASCII letters, digits, underscores, or hyphens. Route only that path from your TLS proxy to the aiohttp port. The application registers the webhook and commands with Telegram, retrying on transient failures.
 
 ## Quality checks
 

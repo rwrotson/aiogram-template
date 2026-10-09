@@ -187,9 +187,19 @@ class BotApplication:
         if supervisor is None:
             return
         if self.settings.update_mode == "polling" and self._polling_started:
-            with suppress(RuntimeError, TimeoutError):
-                async with asyncio.timeout(20):
-                    await self.dispatcher.stop_polling()
+            stop_task = asyncio.create_task(self.dispatcher.stop_polling())
+            try:
+                done, _ = await asyncio.wait(
+                    {stop_task, supervisor}, timeout=20, return_when=asyncio.FIRST_COMPLETED
+                )
+                if stop_task in done:
+                    with suppress(RuntimeError):
+                        stop_task.result()
+            finally:
+                if not stop_task.done():
+                    stop_task.cancel()
+                    with suppress(asyncio.CancelledError):
+                        await stop_task
         if supervisor.done():
             if not supervisor.cancelled():
                 try:

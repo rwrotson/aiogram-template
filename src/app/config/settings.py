@@ -21,7 +21,7 @@ class PostgresRawSettings(BaseModel):
 
 
 class PostgresOrmSettings(BaseModel):
-    """SQLAlchemy async engine used by the ORM adapters and Alembic."""
+    """SQLAlchemy async engine settings for future ORM adapters."""
 
     dsn: SecretStr = Field(description="SQLAlchemy URL, for example postgresql+psycopg://...")
     pool_size: int = Field(default=5, ge=1, description="Persistent connections in the pool")
