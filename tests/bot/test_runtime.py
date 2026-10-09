@@ -3,7 +3,7 @@ import json
 from collections.abc import Callable
 from types import SimpleNamespace
 from typing import cast
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 import structlog
@@ -43,6 +43,7 @@ def message_update() -> dict[str, object]:
             "date": 0,
             "chat": {"id": 42, "type": "private"},
             "text": "/start",
+            "from": {"id": 42, "is_bot": False, "first_name": "User42"},
         },
     }
 
@@ -135,6 +136,102 @@ async def test_webhook_requires_secret_and_processes_before_ack(
     finally:
         await application.stop()
     cast("AsyncMock", bot.session.close).assert_awaited_once()
+
+
+async def test_webhook_dispatches_real_updates_and_reports_handler_errors(
+    settings: Settings, bot: Bot, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    configured = settings.model_copy(
+        update={
+            "update_mode": "webhook",
+            "webhook_url": "https://example.com/telegram/hook",
+            "webhook_secret": SecretStr("webhook-secret"),
+        }
+    )
+    application = create_app(configured, bot)
+    send = AsyncMock(return_value=None)
+    monkeypatch.setattr(Bot, "__call__", send)
+    url = f"http://127.0.0.1:{configured.http_port}/telegram/hook"
+    update = message_update()
+    message = cast("dict[str, object]", update["message"])
+    message["text"] = "/faq commands"
+    await application.start()
+    try:
+        await wait_registered(application)
+        async with ClientSession() as session:
+            async with session.post(
+                url,
+                json=update,
+                headers={"X-Telegram-Bot-Api-Secret-Token": "wrong-secret"},
+            ) as response:
+                assert response.status == 401
+            send.assert_not_awaited()
+
+            async with session.post(
+                url,
+                json=update,
+                headers={"X-Telegram-Bot-Api-Secret-Token": "webhook-secret"},
+            ) as response:
+                assert response.status == 200
+            assert send.await_args_list[-1].args[0].text == (
+                "Use /help to see all commands and /survey to try the FSM example."
+            )
+
+            monkeypatch.setattr(
+                application.container.faq, "answer", Mock(side_effect=RuntimeError("broken"))
+            )
+            message["text"] = "/faq storage"
+            async with session.post(
+                url,
+                json=update,
+                headers={"X-Telegram-Bot-Api-Secret-Token": "webhook-secret"},
+            ) as response:
+                assert response.status == 500
+            assert send.await_count == 1
+    finally:
+        await application.stop()
+
+
+async def test_webhook_registration_retries_while_http_remains_available(
+    settings: Settings, bot: Bot, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    configured = settings.model_copy(
+        update={
+            "update_mode": "webhook",
+            "webhook_url": "https://example.com/telegram/hook",
+            "webhook_secret": SecretStr("webhook-secret"),
+        }
+    )
+    first_attempt = asyncio.Event()
+    attempts = 0
+
+    async def register(*_args: object, **_kwargs: object) -> bool:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            first_attempt.set()
+            raise ConnectionError("Telegram unavailable")
+        return True
+
+    cast("AsyncMock", bot.set_webhook).side_effect = register
+    monkeypatch.setattr(main, "RETRY_DELAY", 0.1)
+    application = create_app(configured, bot)
+    await application.start()
+    try:
+        await asyncio.wait_for(first_attempt.wait(), timeout=2)
+        async with ClientSession() as session:
+            url = f"http://127.0.0.1:{configured.http_port}"
+            async with session.get(f"{url}/live") as response:
+                assert response.status == 200
+            async with session.get(f"{url}/ready") as response:
+                assert response.status == 503
+                assert (await response.json())["dependencies"]["updates"] == "unavailable"
+        await wait_registered(application)
+        assert attempts == 2
+        assert cast("AsyncMock", bot.set_my_commands).await_count == 2
+        cast("AsyncMock", bot.delete_webhook).assert_not_awaited()
+    finally:
+        await application.stop()
 
 
 async def test_unavailable_telegram_marks_ready_unavailable(settings: Settings, bot: Bot) -> None:
