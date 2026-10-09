@@ -1,0 +1,62 @@
+default_install_hook_types: [pre-commit, commit-msg, pre-push]
+
+repos:
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v4.19.2
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.11.26
+    hooks:
+      - id: uv-lock
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+      - id: detect-private-key
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint
+  - repo: https://github.com/AleksaC/hadolint-py
+    rev: v2.15.1
+    hooks:
+      - id: hadolint
+  # Use versions locked in the project environment.
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run --no-sync ruff check --fix
+        language: system
+        types_or: [python, pyi]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run --no-sync ruff format
+        language: system
+        types_or: [python, pyi]
+      - id: lint-imports
+        name: import-linter
+        entry: uv run --no-sync lint-imports
+        language: system
+        pass_filenames: false
+        types: [python]
+      - id: mypy
+        name: mypy
+        entry: uv run --no-sync mypy
+        language: system
+        pass_filenames: false
+        types: [python]
+      - id: pytest
+        name: pytest
+        entry: uv run --no-sync pytest --no-cov -q
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]

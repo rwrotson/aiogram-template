@@ -1,0 +1,245 @@
+[project]
+name = "aiogram-app"
+version = "0.1.0"
+description = "Production-ready Aiogram bot template"
+authors = [{ name = "Igor Lashkov", email = "rwrotson@yandex.ru" }]
+readme = "README.md"
+requires-python = ">=3.14"
+keywords = ["aiogram", "telegram", "bot", "template", "uv", "docker"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3.14",
+]
+dependencies = [
+    "aiogram>=3.31.0",
+    "aiohttp>=3.13.0",
+    "pydantic>=2.13.0,<2.14",
+    "pydantic-settings>=2.15.0",
+    "structlog>=26.1.0",
+    "prometheus-client>=0.26.0",
+    "opentelemetry-api>=1.45.1",
+    "opentelemetry-sdk>=1.45.1",
+    "opentelemetry-exporter-otlp-proto-http>=1.45.1",
+]
+
+[project.optional-dependencies]
+postgres-raw = [
+    "psycopg[binary,pool]>=3.3.6",
+]
+postgres-orm = [
+    "sqlalchemy[asyncio]>=2.1.4",
+    "psycopg[binary]>=3.3.6",
+]
+clickhouse = [
+    "clickhouse-connect[async]>=1.10.0",
+]
+mongodb = [
+    "pymongo>=4.18.3",
+]
+redis = [
+    "redis>=8.1.0",
+]
+
+[dependency-groups]
+dev = [
+    "commitizen>=4.19.2",
+    "import-linter>=2.15",
+    "mypy>=2.4.0",
+    "poethepoet>=0.48.0",
+    "pre-commit>=4.6.2",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "pytest-asyncio>=1.4.0",
+    "pytest-randomly>=5.0.0",
+    "pytest-timeout>=2.4.0",
+    "ruff>=0.16.10",
+    "watchfiles>=1.0.0",
+]
+docs = [
+    "mkdocs-gen-files>=0.6.1",
+    "mkdocs-literate-nav>=0.6.3",
+    "mkdocs-material>=9.7.7",
+    "mkdocs-minify-plugin>=0.8.0",
+    "mkdocstrings[python]>=1.0.6",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.24,<0.13"]
+build-backend = "uv_build"
+
+[tool.uv]
+# Security floors for transitive dependencies.
+constraint-dependencies = ["urllib3>=2.8.0", "virtualenv>=21.7.13"]
+
+[tool.uv.build-backend]
+module-name = "app"
+module-root = "src"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --tb=short --strict-markers --strict-config"
+markers = ["integration: requires a PostgreSQL database"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+xfail_strict = true
+filterwarnings = ["error"]
+timeout = 30
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["*/__init__.py"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 95
+
+[tool.mypy]
+python_version = "3.14"
+mypy_path = "src"
+files = ["src", "tests", "docs"]
+strict = true
+warn_unused_ignores = true
+plugins = ["pydantic.mypy"]
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "I",
+    "UP",
+    "B",
+    "ASYNC",
+    "ANN",
+    "S",
+    "RUF",
+    "TID",
+    "C4",
+    "SIM",
+    "PT",
+    "RET",
+    "ARG",
+    "PERF",
+    "FURB",
+    "PL",
+    "DTZ",
+    "T20",
+    "ERA",
+    "BLE",
+    "N",
+    "PIE",
+    "D101",
+    "D102",
+    "D103",
+    "PGH003",
+    "PGH004",
+    "T100",
+    "C901",
+    "FBT003",
+    "A001",
+    "A002",
+    "A004",
+    "A005",
+    "A006",
+    "G001",
+    "G002",
+    "G003",
+    "G004",
+    "G101",
+    "G201",
+    "G202",
+    "LOG001",
+    "LOG002",
+    "LOG014",
+    "LOG015"
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "PLR2004",
+    "ARG",
+    "S101",
+    "S105",
+    "S106",
+    "D101",
+    "D102",
+    "D103"
+]
+"docs/**" = ["T20"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.mccabe]
+max-complexity = 8
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+tag_format = "v$version"
+version_scheme = "pep440"
+version_provider = "uv"
+update_changelog_on_bump = true
+major_version_zero = true
+
+[tool.importlinter]
+root_package = "app"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Services stay independent of transport, storage and configuration"
+type = "forbidden"
+source_modules = ["app.services"]
+forbidden_modules = [
+    "aiogram", "aiohttp", "pydantic_settings", "sqlalchemy", "psycopg", "psycopg_pool",
+    "redis", "pymongo", "clickhouse_connect", "app.bot", "app.infra", "app.core", "app.config",
+]
+
+[[tool.importlinter.contracts]]
+name = "Infrastructure does not depend on Telegram transport"
+type = "forbidden"
+source_modules = ["app.infra"]
+forbidden_modules = ["aiogram", "aiohttp", "app.bot"]
+
+[[tool.importlinter.contracts]]
+name = "Configuration has no application dependencies"
+type = "forbidden"
+source_modules = ["app.config"]
+forbidden_modules = ["app.bot", "app.infra", "app.services", "app.core"]
+
+[[tool.importlinter.contracts]]
+name = "Operational support does not depend on business or Telegram layers"
+type = "forbidden"
+source_modules = ["app.core"]
+forbidden_modules = ["app.bot", "app.services", "app.infra"]
+
+[tool.poe.tasks]
+serve = "python -m app.main"
+fmt = "ruff format ."
+fmt-check = "ruff format --check ."
+lint = "ruff check ."
+lint-imports = "lint-imports"
+typecheck = "mypy"
+test = "pytest --cov=app"
+test-fast = "pytest"
+test-integration = "pytest --no-cov -m integration"
+docs = "mkdocs serve"
+check = ["fmt-check", "lint", "lint-imports", "typecheck", "test"]
+
+[tool.poe.tasks.audit]
+shell = """
+uv export --locked --all-extras --no-dev --no-emit-project --no-hashes --output-file requirements-audit.txt
+uv run --with pip-audit pip-audit --requirement requirements-audit.txt --no-deps
+"""

@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+      - run: uv sync --locked --all-extras --all-groups
+      - run: uv run --no-sync poe fmt-check
+      - run: uv run --no-sync poe lint
+      - run: uv run --no-sync poe lint-imports
+      - run: uv run --no-sync poe typecheck
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+      - run: uv sync --locked --all-extras --all-groups
+      - run: uv run --no-sync poe test
+
+  # Verify direct-dependency lower bounds with current transitive dependencies.
+  lowest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - run: uv venv
+      - run: >-
+          uv pip install --resolution lowest-direct --group dev
+          -e ".[postgres-raw,postgres-orm,clickhouse,mongodb,redis]"
+      - run: .venv/bin/pytest --no-cov -W default::DeprecationWarning
+
+  integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: app_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U app -d app_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      APP_POSTGRES_ORM__DSN: postgresql+psycopg://app:app@127.0.0.1:5432/app_test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+      - run: uv sync --locked --all-extras --all-groups
+      - run: uv run --no-sync poe test-integration
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+      - run: uv sync --locked --all-extras --all-groups
+      - run: uv build
+      - run: uv run --no-sync mkdocs build --strict
+      - run: uv run --no-sync poe audit
+
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: production
+          load: true
+          tags: aiogram-app:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: aiogram-app:ci
+          exit-code: "1"
+          severity: CRITICAL,HIGH
