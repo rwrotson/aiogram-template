@@ -52,7 +52,7 @@ services:
       retries: 10
 
   clickhouse:
-    image: clickhouse/clickhouse-server:25.8-alpine
+    image: clickhouse/clickhouse-server:26.6-alpine
     profiles: [clickhouse]
     environment:
       CLICKHOUSE_SKIP_USER_SETUP: "1"
