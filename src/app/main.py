@@ -177,8 +177,10 @@ class BotApplication:
     async def start(self) -> None:
         """Start shared resources and retry Telegram setup in the background."""
         configure_logging(self.settings.log_level, self.settings.resolved_log_format)
-        self._tracer = configure_tracing(self.settings.otlp_endpoint, self.settings.name)
         try:
+            self._tracer = configure_tracing(self.settings.otlp_endpoint, self.settings.name)
+            if self._tracer is not None:
+                self.update_middleware.bind_tracer(self._tracer)
             await self.storage.open(self.settings)
             if self.settings.update_mode == "webhook":
                 await self.dispatcher.emit_startup(bot=self.bot, container=self.container)

@@ -5,6 +5,7 @@ import time
 import pytest
 import structlog
 from aiogram.types import Update
+from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 
 from app.bot.middleware import UpdateMiddleware
@@ -37,10 +38,12 @@ def test_console_logs_are_readable(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 def test_tracing_is_optional() -> None:
+    global_provider = trace.get_tracer_provider()
     assert configure_tracing(None, "test") is None
     provider = configure_tracing("http://127.0.0.1:4318/v1/traces", "test")
     assert isinstance(provider, TracerProvider)
     assert provider.resource.attributes["service.name"] == "test"
+    assert trace.get_tracer_provider() is global_provider
     provider.shutdown()
 
 

@@ -1,15 +1,21 @@
 import asyncio
+import json
 from collections.abc import Callable
 from types import SimpleNamespace
 from typing import cast
 from unittest.mock import AsyncMock
 
 import pytest
+import structlog
 from aiogram import Bot
 from aiogram.fsm.storage.memory import MemoryStorage, SimpleEventIsolation
 from aiogram.fsm.storage.redis import RedisEventIsolation, RedisStorage
 from aiogram.types import Update
 from aiohttp import ClientSession
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from pydantic import SecretStr
 
 from app import main
@@ -471,6 +477,54 @@ async def test_webhook_shutdown_hook_failure_still_closes_resources(
         await application.stop()
     cast("AsyncMock", bot.session.close).assert_awaited_once()
     assert application.storage.handles == {}
+
+
+async def test_sequential_applications_use_their_own_tracers(
+    settings: Settings,
+    bot: Bot,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    global_provider = trace.get_tracer_provider()
+    exporters: list[InMemorySpanExporter] = []
+
+    def make_provider(_endpoint: str | None, _service_name: str) -> TracerProvider:
+        provider = TracerProvider()
+        exporter = InMemorySpanExporter()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        exporters.append(exporter)
+        return provider
+
+    async def wait_for_stop(*_args: object, **_kwargs: object) -> None:
+        await asyncio.Event().wait()
+
+    async def handle(_event: object, _data: dict[str, object]) -> None:
+        structlog.get_logger().info("traced_update")
+
+    monkeypatch.setattr(main, "configure_tracing", make_provider)
+    configured = settings.model_copy(update={"otlp_endpoint": "http://collector:4318/v1/traces"})
+    for _ in range(2):
+        application = create_app(configured, bot)
+        monkeypatch.setattr(application.dispatcher, "start_polling", wait_for_stop)
+        await application.start()
+        try:
+            await wait_registered(application)
+            event = Update.model_validate(message_update())
+            await application.update_middleware(handle, event, {})
+        finally:
+            await application.stop()
+
+    assert trace.get_tracer_provider() is global_provider
+    traces = [exporter.get_finished_spans()[0].context.trace_id for exporter in exporters]
+    assert len(traces) == 2
+    assert traces[0] != traces[1]
+    logged = [
+        json.loads(line) for line in capsys.readouterr().out.splitlines() if line.startswith("{")
+    ]
+    update_logs = [entry for entry in logged if entry.get("event") == "traced_update"]
+    assert [entry["trace_id"] for entry in update_logs] == [
+        format(value, "032x") for value in traces
+    ]
 
 
 async def test_run_starts_and_stops_on_signal(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -6,4 +6,4 @@ The operational aiohttp server exposes `/live`, `/ready`, and `/metrics` in both
 
 `/metrics` exposes `app_telegram_updates_total`, `app_telegram_update_duration_seconds`, `app_telegram_updates_in_progress`, `app_storage_available`, and generic database-operation metrics, together with Python and process metrics from Prometheus. Keep `/metrics` private. In Compose, the host port binds only to localhost; in webhook mode the reverse proxy must expose only the webhook path. The bot runs as one process, so Prometheus multiprocess setup is unnecessary.
 
-`APP_OTLP_ENDPOINT` takes a full OTLP/HTTP traces endpoint, such as `http://collector:4318/v1/traces`. Tracing is disabled when unset. The template does not run a collector.
+`APP_OTLP_ENDPOINT` takes a full OTLP/HTTP traces endpoint, such as `http://collector:4318/v1/traces`. Tracing is disabled when unset. Each application owns its tracer provider and closes it after active updates finish; the template does not run a collector.

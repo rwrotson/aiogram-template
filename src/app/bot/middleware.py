@@ -7,6 +7,7 @@ import structlog
 from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject
 from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
 
 from app.core.metrics import UPDATE_DURATION, UPDATE_IN_PROGRESS, UPDATES
 
@@ -18,6 +19,11 @@ class UpdateMiddleware(BaseMiddleware):
         self._active: set[asyncio.Task[object]] = set()
         self._idle = asyncio.Event()
         self._idle.set()
+        self._tracer = trace.get_tracer("app.bot")
+
+    def bind_tracer(self, provider: TracerProvider) -> None:
+        """Use the tracer owned by this application for update spans."""
+        self._tracer = provider.get_tracer("app.bot")
 
     @property
     def active_count(self) -> int:
@@ -56,7 +62,7 @@ class UpdateMiddleware(BaseMiddleware):
         outcome = "ok"
         UPDATE_IN_PROGRESS.inc()
         try:
-            with trace.get_tracer("app.bot").start_as_current_span("telegram.update"):
+            with self._tracer.start_as_current_span("telegram.update"):
                 return await handler(event, data)
         except asyncio.CancelledError:
             outcome = "cancelled"
