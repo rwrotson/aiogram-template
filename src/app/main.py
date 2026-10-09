@@ -53,7 +53,14 @@ class BotApplication:
             import aiogram.fsm.storage.redis as redis_storage  # noqa: PLC0415 - optional Redis extra
 
             redis_fsm_storage = redis_storage.RedisStorage.from_url(
-                settings.redis.dsn.get_secret_value()
+                settings.redis.dsn.get_secret_value(),
+                connection_kwargs={
+                    "max_connections": settings.redis.max_connections,
+                    "socket_timeout": settings.redis.socket_timeout,
+                    "socket_connect_timeout": settings.redis.socket_connect_timeout,
+                },
+                state_ttl=settings.redis.fsm_ttl_seconds,
+                data_ttl=settings.redis.fsm_ttl_seconds,
             )
             fsm_storage = redis_fsm_storage
             events_isolation = redis_fsm_storage.create_isolation()

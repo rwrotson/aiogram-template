@@ -78,7 +78,11 @@ module-root = "src"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra --tb=short --strict-markers --strict-config"
-markers = ["integration: requires a PostgreSQL database"]
+markers = [
+    "integration: requires an external service",
+    "postgres_integration: requires a PostgreSQL database",
+    "redis_integration: requires a Redis server",
+]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 xfail_strict = true
@@ -235,6 +239,8 @@ typecheck = "mypy"
 test = "pytest --cov=app"
 test-fast = "pytest"
 test-integration = "pytest --no-cov -m integration"
+test-integration-postgres = "pytest --no-cov -m postgres_integration"
+test-integration-redis = "pytest --no-cov -m redis_integration"
 docs = "mkdocs serve"
 check = ["fmt-check", "lint", "lint-imports", "typecheck", "test"]
 

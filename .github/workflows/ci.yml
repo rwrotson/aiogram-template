@@ -50,7 +50,7 @@ jobs:
           -e ".[postgres-raw,postgres-orm,clickhouse,mongodb,redis]"
       - run: .venv/bin/pytest --no-cov -W default::DeprecationWarning
 
-  integration:
+  integration-postgres:
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -74,7 +74,29 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --locked --all-extras --all-groups
-      - run: uv run --no-sync poe test-integration
+      - run: uv run --no-sync poe test-integration-postgres
+
+  integration-redis:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      APP_REDIS__DSN: redis://127.0.0.1:6379/0
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+      - run: uv sync --locked --all-extras --all-groups
+      - run: uv run --no-sync poe test-integration-redis
 
   build:
     runs-on: ubuntu-latest

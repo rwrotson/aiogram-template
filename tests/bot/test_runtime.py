@@ -156,7 +156,13 @@ def test_fsm_uses_memory_without_redis(settings: Settings, bot: Bot) -> None:
 def test_fsm_uses_redis_when_configured(settings: Settings, bot: Bot) -> None:
     configured = settings.model_copy(
         update={
-            "redis": RedisSettings(dsn=SecretStr("redis://localhost/0")),
+            "redis": RedisSettings(
+                dsn=SecretStr("redis://localhost/0"),
+                max_connections=7,
+                socket_timeout=3.0,
+                socket_connect_timeout=2.0,
+                fsm_ttl_seconds=60,
+            ),
             "http_port": free_port(),
         }
     )
@@ -164,6 +170,12 @@ def test_fsm_uses_redis_when_configured(settings: Settings, bot: Bot) -> None:
     assert isinstance(fsm.storage, RedisStorage)
     assert isinstance(fsm.events_isolation, RedisEventIsolation)
     assert fsm.events_isolation.redis is fsm.storage.redis
+    assert fsm.storage.state_ttl == 60
+    assert fsm.storage.data_ttl == 60
+    pool = fsm.storage.redis.connection_pool
+    assert pool.max_connections == 7
+    assert pool.connection_kwargs["socket_timeout"] == 3.0
+    assert pool.connection_kwargs["socket_connect_timeout"] == 2.0
 
 
 async def test_polling_owns_dispatcher_lifecycle_once(

@@ -59,6 +59,9 @@ class RedisSettings(BaseModel):
     max_connections: int | None = Field(default=None, ge=1, description="Pool limit; unbounded")
     socket_timeout: float = Field(default=5.0, gt=0, description="Seconds per command")
     socket_connect_timeout: float = Field(default=5.0, gt=0, description="Seconds to connect")
+    fsm_ttl_seconds: int = Field(
+        default=604800, ge=1, description="Lifetime of Redis FSM state and data in seconds"
+    )
 
 
 class Settings(BaseSettings):

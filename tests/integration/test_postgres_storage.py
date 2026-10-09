@@ -4,7 +4,7 @@ from pydantic import SecretStr
 from app.config import PostgresOrmSettings, Settings
 from app.infra.storage.base import POSTGRES_ORM, StorageManager
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.postgres_integration]
 
 
 async def test_postgres_orm_connects_and_reports_ready(postgres_dsn: str) -> None:

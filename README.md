@@ -30,7 +30,7 @@ curl http://127.0.0.1:8000/live
 curl http://127.0.0.1:8000/ready
 ```
 
-`/ready` checks Telegram, update registration, and configured storage backends. `/live` checks only the local process. With no `APP_REDIS__DSN`, survey state is lost on restart. To persist it, install the `redis` extra and set `APP_REDIS__DSN`. Other storage backends are optional; see [storage](docs/storage.md).
+`/ready` checks Telegram, update registration, and configured storage backends. `/live` checks only the local process. With no `APP_REDIS__DSN`, survey state is lost on restart. To persist it, install the `redis` extra and set `APP_REDIS__DSN`; Redis FSM state expires after seven days by default. Other storage backends are optional; see [storage](docs/storage.md).
 
 ## Webhook mode
 
