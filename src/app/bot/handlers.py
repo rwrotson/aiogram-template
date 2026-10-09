@@ -1,9 +1,11 @@
 from aiogram import F, Router
-from aiogram.filters import Command, CommandStart
+from aiogram.filters import Command, CommandObject, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import Message
 
+from app.container import AppContainer
+from app.services.errors import NotFoundError
 from app.services.greeting import greeting_message
 
 
@@ -24,8 +26,23 @@ async def start(message: Message) -> None:
 async def help_command(message: Message) -> None:
     """Describe the available commands."""
     await message.answer(
-        "/start — greeting\n/help — commands\n/survey — two questions\n/cancel — stop the survey"
+        "/start — greeting\n/help — commands\n/faq — example topics\n"
+        "/survey — two questions\n/cancel — stop the survey"
     )
+
+
+async def faq(message: Message, command: CommandObject, container: AppContainer) -> None:
+    """Reply with an example topic or show how to request one."""
+    topic = (command.args or "").strip().lower()
+    if not topic:
+        await message.answer("Choose a topic: /faq commands or /faq storage.")
+        return
+    try:
+        answer = container.faq.answer(topic)
+    except NotFoundError:
+        await message.answer("Unknown topic. Choose /faq commands or /faq storage.")
+        return
+    await message.answer(answer)
 
 
 async def cancel(message: Message, state: FSMContext) -> None:
@@ -70,6 +87,7 @@ def create_router() -> Router:
     router = Router(name="examples")
     router.message.register(start, CommandStart())
     router.message.register(help_command, Command("help"))
+    router.message.register(faq, Command("faq"))
     router.message.register(cancel, Command("cancel"))
     router.message.register(survey, Command("survey"))
     router.message.register(language, Survey.language, F.text)

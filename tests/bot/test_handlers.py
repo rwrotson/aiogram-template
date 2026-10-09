@@ -9,6 +9,8 @@ from aiogram.types import Message
 
 from app.bot.factory import create_dispatcher
 from app.bot.handlers import framework, language, start
+from app.config import Settings
+from app.main import create_app
 
 
 def update(update_id: int, text: str, user_id: int = 42) -> dict[str, object]:
@@ -72,6 +74,28 @@ async def test_non_text_answer_reprompts(monkeypatch: pytest.MonkeyPatch, bot: B
         },
     )
     assert send.await_args_list[-1].args[0].text == "Please send a text answer or /cancel."
+
+
+async def test_faq_topics_and_unknown_topic(
+    monkeypatch: pytest.MonkeyPatch, bot: Bot, settings: Settings
+) -> None:
+    send = AsyncMock(return_value=None)
+    monkeypatch.setattr(Bot, "__call__", send)
+    application = create_app(settings, bot)
+    for index, command in enumerate(
+        ("/faq", "/faq commands", "/faq storage", "/faq missing"), start=1
+    ):
+        await application.dispatcher.feed_raw_update(
+            bot, update(index, command), container=application.container
+        )
+
+    messages = [call.args[0].text for call in send.await_args_list]
+    assert messages == [
+        "Choose a topic: /faq commands or /faq storage.",
+        "Use /help to see all commands and /survey to try the FSM example.",
+        "The bot uses memory by default. Configure Redis for persistent FSM state.",
+        "Unknown topic. Choose /faq commands or /faq storage.",
+    ]
 
 
 async def test_empty_answers_repeat_current_question() -> None:

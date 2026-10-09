@@ -19,13 +19,16 @@ from app.config import Settings, load_settings
 from app.container import AppContainer
 from app.core.logging import configure_logging
 from app.core.telemetry import configure_tracing
+from app.infra.faq import MemoryFaqRepository
 from app.infra.storage.base import StorageManager
+from app.services.faq import FaqService
 
 DISTRIBUTION = "aiogram-app"
 RETRY_DELAY = 5.0
 COMMANDS = [
     BotCommand(command="start", description="Greet the user"),
     BotCommand(command="help", description="Show commands"),
+    BotCommand(command="faq", description="Read an example FAQ topic"),
     BotCommand(command="survey", description="Start a short survey"),
     BotCommand(command="cancel", description="Cancel the survey"),
 ]
@@ -68,7 +71,9 @@ class BotApplication:
         self.dispatcher = create_dispatcher(fsm_storage, events_isolation, self.update_middleware)
         self._fsm_closed = False
         self.dispatcher.shutdown.register(self._mark_fsm_closed)
-        self.container = AppContainer(settings=settings, storage=self.storage)
+        self.container = AppContainer(
+            settings=settings, storage=self.storage, faq=FaqService(MemoryFaqRepository())
+        )
         self.http = web.Application()
         self.http.router.add_get("/live", self.live)
         self.http.router.add_get("/ready", self.ready)

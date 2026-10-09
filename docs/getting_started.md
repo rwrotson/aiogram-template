@@ -7,7 +7,7 @@ uv sync --all-extras --all-groups
 uv run poe serve
 ```
 
-The default polling mode removes an old webhook without dropping pending updates. Send `/start` and `/help` to see the command examples. `/survey` asks for a programming language and a framework; `/cancel` clears an unfinished survey. The FSM uses process memory unless `APP_REDIS__DSN` is set and the `redis` extra is installed.
+The default polling mode removes an old webhook without dropping pending updates. Send `/start` and `/help` to see the command examples. `/faq commands` and `/faq storage` read answers from the in-memory FAQ example. `/survey` asks for a programming language and a framework; `/cancel` clears an unfinished survey. The FSM uses process memory unless `APP_REDIS__DSN` is set and the `redis` extra is installed.
 
 The operational aiohttp server is local by default:
 

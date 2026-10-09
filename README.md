@@ -4,7 +4,7 @@ A GitHub template for a typed Aiogram Telegram bot. It supports long polling and
 
 ## Included
 
-- Aiogram 3 dispatcher, `/start`, `/help`, and a two-question `/survey` FSM example with `/cancel`
+- Aiogram 3 dispatcher, `/start`, `/help`, `/faq`, and a two-question `/survey` FSM example with `/cancel`
 - Polling by default, or an aiohttp webhook protected by Telegram's secret header
 - Pydantic Settings, structured logs, Prometheus metrics, optional OpenTelemetry traces, and `/live` and `/ready`
 - Redis FSM storage when Redis is configured; process-local memory otherwise
@@ -23,7 +23,7 @@ uv sync --all-extras --all-groups
 uv run poe serve
 ```
 
-Send `/start`, `/help`, or `/survey` to the bot. The process starts an operational HTTP server on `127.0.0.1:8000`:
+Send `/start`, `/help`, `/faq commands`, `/faq storage`, or `/survey` to the bot. The process starts an operational HTTP server on `127.0.0.1:8000`:
 
 ```bash
 curl http://127.0.0.1:8000/live
