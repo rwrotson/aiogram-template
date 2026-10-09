@@ -24,7 +24,7 @@ Individual tasks: `fmt`, `fmt-check`, `lint`, `lint-imports`, `typecheck`, `test
 
 ## Application structure
 
-- `src/app/main.py` defines `create_app()` and owns the bot, dispatcher, aiohttp server, and startup and shutdown. `uv run poe serve` starts polling by default. A valid `APP_BOT_TOKEN` is required. `APP_UPDATE_MODE=webhook` also requires a public HTTPS `APP_WEBHOOK_URL` and `APP_WEBHOOK_SECRET`.
+- `src/app/main.py` defines `create_app()` and owns the bot, dispatcher, aiohttp server, and startup and shutdown. `uv run poe serve` starts polling by default. Polling concurrency is bounded and shutdown waits briefly for active updates before closing dependencies. A valid `APP_BOT_TOKEN` is required. `APP_UPDATE_MODE=webhook` also requires a public HTTPS `APP_WEBHOOK_URL` and `APP_WEBHOOK_SECRET`.
 - `src/app/bot/` contains Aiogram routers, middleware, FSM states, and handler composition. Build a fresh Router for every dispatcher; Aiogram routers cannot be attached twice. Configure event isolation for FSM updates, using process locks with memory and Redis locks with Redis. Keep handlers thin and use Aiogram context for application-scoped dependencies.
 - `src/app/services/` contains use cases, transport-independent types, errors, and ports; it never imports Aiogram, settings, or database drivers. The greeting example is here.
 - `src/app/config/` contains Pydantic Settings, `APP_*` environment loading, and defaults in code. Storage settings are nested models (`APP_REDIS__DSN`) with `SecretStr` secrets. Every setting must appear in `.env.example`; a test enforces it, and the docs configuration page is generated from `Settings`.

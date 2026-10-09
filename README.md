@@ -8,6 +8,7 @@ A GitHub template for a typed Aiogram Telegram bot. It supports long polling and
 - Polling by default, or an aiohttp webhook protected by Telegram's secret header
 - Pydantic Settings, structured logs, Prometheus metrics, optional OpenTelemetry traces, and `/live` and `/ready`
 - Redis FSM storage when Redis is configured; process-local memory otherwise
+- Bounded polling concurrency and a grace period for active handlers at shutdown
 - Strict MyPy, Ruff, import-linter layer contracts, pytest with 95% coverage, random test order, uv, pre-commit, and Commitizen
 - Docker Compose for development and VPS deployment, multi-architecture GHCR releases, and MkDocs on GitHub Pages
 

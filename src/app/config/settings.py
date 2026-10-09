@@ -79,6 +79,12 @@ class Settings(BaseSettings):
     )
     http_host: str = Field(default="127.0.0.1", description="Host for health and webhook server")
     http_port: int = Field(default=8000, ge=1, le=65535, description="Health and webhook port")
+    polling_max_concurrent_updates: int = Field(
+        default=100, ge=1, description="Maximum updates handled concurrently in polling mode"
+    )
+    shutdown_grace_seconds: float = Field(
+        default=15.0, gt=0, description="Seconds to wait for active updates during shutdown"
+    )
     environment: Literal["development", "production", "test"] = Field(
         default="development", description="Deployment environment"
     )

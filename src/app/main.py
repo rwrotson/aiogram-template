@@ -14,6 +14,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from app.bot.factory import create_dispatcher
+from app.bot.middleware import UpdateMiddleware
 from app.config import Settings, load_settings
 from app.container import AppContainer
 from app.core.logging import configure_logging
@@ -56,7 +57,8 @@ class BotApplication:
             )
             fsm_storage = redis_fsm_storage
             events_isolation = redis_fsm_storage.create_isolation()
-        self.dispatcher = create_dispatcher(fsm_storage, events_isolation)
+        self.update_middleware = UpdateMiddleware()
+        self.dispatcher = create_dispatcher(fsm_storage, events_isolation, self.update_middleware)
         self._fsm_closed = False
         self.dispatcher.shutdown.register(self._mark_fsm_closed)
         self.container = AppContainer(settings=settings, storage=self.storage)
@@ -75,6 +77,7 @@ class BotApplication:
                 container=self.container,
             ).register(self.http, path=urlsplit(settings.webhook_url).path)
         self._runner: web.AppRunner | None = None
+        self._site: web.TCPSite | None = None
         self._supervisor: asyncio.Task[None] | None = None
         self._registered = False
         self._polling_started = False
@@ -152,6 +155,7 @@ class BotApplication:
                     self.bot,
                     handle_signals=False,
                     close_bot_session=False,
+                    tasks_concurrency_limit=self.settings.polling_max_concurrent_updates,
                     container=self.container,
                 )
             except asyncio.CancelledError:
@@ -171,10 +175,11 @@ class BotApplication:
             await self.storage.open(self.settings)
             if self.settings.update_mode == "webhook":
                 await self.dispatcher.emit_startup(bot=self.bot, container=self.container)
-            self._runner = web.AppRunner(self.http)
+            self._runner = web.AppRunner(self.http, shutdown_timeout=3)
             await self._runner.setup()
             site = web.TCPSite(self._runner, self.settings.http_host, self.settings.http_port)
             await site.start()
+            self._site = site
             self._supervisor = asyncio.create_task(self._serve_updates())
             structlog.get_logger().info("application_started", mode=self.settings.update_mode)
         except Exception:
@@ -190,7 +195,7 @@ class BotApplication:
             stop_task = asyncio.create_task(self.dispatcher.stop_polling())
             try:
                 done, _ = await asyncio.wait(
-                    {stop_task, supervisor}, timeout=20, return_when=asyncio.FIRST_COMPLETED
+                    {stop_task, supervisor}, timeout=5, return_when=asyncio.FIRST_COMPLETED
                 )
                 if stop_task in done:
                     with suppress(RuntimeError):
@@ -228,12 +233,21 @@ class BotApplication:
         if self._runner is not None:
             cleanup.push_async_callback(self._runner.cleanup)
         try:
-            await self._stop_updates()
+            try:
+                await self._stop_updates()
+            finally:
+                try:
+                    if self._site is not None:
+                        await self._site.stop()
+                        self._site = None
+                finally:
+                    await self.update_middleware.drain(self.settings.shutdown_grace_seconds)
         finally:
             try:
                 await cleanup.aclose()
             finally:
                 self._runner = None
+                self._site = None
                 self._tracer = None
                 structlog.get_logger().info("application_stopped")
 

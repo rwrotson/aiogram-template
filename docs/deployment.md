@@ -25,6 +25,8 @@ curl http://127.0.0.1:8000/ready
 
 The operational port is published only on `127.0.0.1:${APP_PORT:-8000}` of the host. The container healthcheck uses `/live`; use `/ready` to inspect Telegram and storage availability. Logs go to stdout with rotation. The container runs as a non-root user with a read-only root filesystem and a `/tmp` tmpfs.
 
+Polling handles at most `APP_POLLING_MAX_CONCURRENT_UPDATES` updates at once (100 by default). On shutdown, the bot gives active handlers `APP_SHUTDOWN_GRACE_SECONDS` (15 seconds by default) to finish, then cancels them before closing their dependencies. Keep this interval below Compose's 30-second `stop_grace_period`.
+
 For polling, no public HTTP route is required. For webhook mode, set `APP_UPDATE_MODE=webhook`, a public `APP_WEBHOOK_URL` with HTTPS and a dedicated path, and `APP_WEBHOOK_SECRET`. Configure a TLS reverse proxy to forward only that path to the localhost port. For example:
 
 ```caddyfile

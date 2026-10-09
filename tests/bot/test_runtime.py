@@ -8,6 +8,7 @@ import pytest
 from aiogram import Bot
 from aiogram.fsm.storage.memory import MemoryStorage, SimpleEventIsolation
 from aiogram.fsm.storage.redis import RedisEventIsolation, RedisStorage
+from aiogram.types import Update
 from aiohttp import ClientSession
 from pydantic import SecretStr
 
@@ -27,9 +28,23 @@ async def wait_registered(application: BotApplication) -> None:
     raise AssertionError("Telegram setup did not complete")
 
 
+def message_update() -> dict[str, object]:
+    """Build one valid Telegram message update for runtime tests."""
+    return {
+        "update_id": 1,
+        "message": {
+            "message_id": 1,
+            "date": 0,
+            "chat": {"id": 42, "type": "private"},
+            "text": "/start",
+        },
+    }
+
+
 async def test_polling_serves_health_and_stops_cleanly(
     settings: Settings, bot: Bot, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    settings = settings.model_copy(update={"polling_max_concurrent_updates": 7})
     application = create_app(settings, bot)
     pending = asyncio.Event()
 
@@ -57,6 +72,9 @@ async def test_polling_serves_health_and_stops_cleanly(
                 assert "app_telegram_updates_total" in await response.text()
         cast("AsyncMock", bot.delete_webhook).assert_awaited_once_with(drop_pending_updates=False)
         cast("AsyncMock", bot.set_my_commands).assert_awaited_once_with(COMMANDS)
+        polling = cast("AsyncMock", application.dispatcher.start_polling)
+        assert polling.await_args is not None
+        assert polling.await_args.kwargs["tasks_concurrency_limit"] == 7
     finally:
         await application.stop()
     cast("AsyncMock", bot.session.close).assert_awaited_once()
@@ -315,6 +333,108 @@ async def test_polling_shutdown_failure_does_not_delay_cleanup(
     await asyncio.wait_for(application.stop(), timeout=2)
     cast("AsyncMock", bot.session.close).assert_awaited_once()
     assert application.storage.handles == {}
+
+
+async def test_shutdown_waits_for_active_update_before_closing_bot(
+    settings: Settings, bot: Bot, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    application = create_app(settings, bot)
+    entered = asyncio.Event()
+    release = asyncio.Event()
+
+    async def wait_for_stop(*_args: object, **_kwargs: object) -> None:
+        await asyncio.Event().wait()
+
+    async def handle(_event: object, _data: dict[str, object]) -> None:
+        entered.set()
+        await release.wait()
+
+    monkeypatch.setattr(application.dispatcher, "start_polling", wait_for_stop)
+    await application.start()
+    await wait_registered(application)
+    event = Update.model_validate(message_update())
+    update_task = asyncio.create_task(application.update_middleware(handle, event, {}))
+    await entered.wait()
+    stop_task = asyncio.create_task(application.stop())
+    await asyncio.sleep(0.05)
+    assert not stop_task.done()
+    cast("AsyncMock", bot.session.close).assert_not_awaited()
+    release.set()
+    await asyncio.wait_for(stop_task, timeout=2)
+    await update_task
+    cast("AsyncMock", bot.session.close).assert_awaited_once()
+
+
+async def test_shutdown_cancels_update_after_grace_period(
+    settings: Settings, bot: Bot, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    configured = settings.model_copy(update={"shutdown_grace_seconds": 0.01})
+    application = create_app(configured, bot)
+    entered = asyncio.Event()
+
+    async def wait_for_stop(*_args: object, **_kwargs: object) -> None:
+        await asyncio.Event().wait()
+
+    async def handle(_event: object, _data: dict[str, object]) -> None:
+        entered.set()
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(application.dispatcher, "start_polling", wait_for_stop)
+    await application.start()
+    await wait_registered(application)
+    event = Update.model_validate(message_update())
+    update_task = asyncio.create_task(application.update_middleware(handle, event, {}))
+    await entered.wait()
+    await asyncio.wait_for(application.stop(), timeout=2)
+    with pytest.raises(asyncio.CancelledError):
+        await update_task
+    assert application.update_middleware.active_count == 0
+    cast("AsyncMock", bot.session.close).assert_awaited_once()
+
+
+async def test_webhook_shutdown_waits_for_active_request(
+    settings: Settings, bot: Bot, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    configured = settings.model_copy(
+        update={
+            "update_mode": "webhook",
+            "webhook_url": "https://example.com/telegram/hook",
+            "webhook_secret": SecretStr("webhook-secret"),
+        }
+    )
+    application = create_app(configured, bot)
+    entered = asyncio.Event()
+    release = asyncio.Event()
+
+    async def handle(_event: object, _data: dict[str, object]) -> None:
+        entered.set()
+        await release.wait()
+
+    async def feed_update(_bot: Bot, update: Update, **_kwargs: object) -> None:
+        await application.update_middleware(handle, update, {})
+
+    monkeypatch.setattr(application.dispatcher, "feed_update", feed_update)
+    await application.start()
+    await wait_registered(application)
+    url = f"http://127.0.0.1:{configured.http_port}/telegram/hook"
+    async with ClientSession() as session:
+        request_task = asyncio.create_task(
+            session.post(
+                url,
+                json=message_update(),
+                headers={"X-Telegram-Bot-Api-Secret-Token": "webhook-secret"},
+            )
+        )
+        await entered.wait()
+        stop_task = asyncio.create_task(application.stop())
+        await asyncio.sleep(0.05)
+        cast("AsyncMock", bot.session.close).assert_not_awaited()
+        release.set()
+        response = await asyncio.wait_for(request_task, timeout=2)
+        assert response.status == 200
+        response.release()
+        await asyncio.wait_for(stop_task, timeout=2)
+    cast("AsyncMock", bot.session.close).assert_awaited_once()
 
 
 async def test_webhook_shutdown_hook_failure_still_closes_resources(

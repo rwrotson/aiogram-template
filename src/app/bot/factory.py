@@ -7,7 +7,9 @@ from app.bot.middleware import UpdateMiddleware
 
 
 def create_dispatcher(
-    storage: BaseStorage, events_isolation: BaseEventIsolation | None = None
+    storage: BaseStorage,
+    events_isolation: BaseEventIsolation | None = None,
+    update_middleware: UpdateMiddleware | None = None,
 ) -> Dispatcher:
     """Build an isolated dispatcher with the template's routers and middleware."""
     dispatcher = Dispatcher(
@@ -16,6 +18,6 @@ def create_dispatcher(
         if events_isolation is not None
         else SimpleEventIsolation(),
     )
-    dispatcher.update.outer_middleware(UpdateMiddleware())
+    dispatcher.update.outer_middleware(update_middleware or UpdateMiddleware())
     dispatcher.include_router(create_router())
     return dispatcher
