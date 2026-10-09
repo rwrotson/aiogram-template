@@ -11,7 +11,7 @@ services:
       APP_ENVIRONMENT: development
 
   postgres:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     profiles: [postgres]
     environment:
       POSTGRES_USER: app
