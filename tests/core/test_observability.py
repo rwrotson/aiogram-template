@@ -1,12 +1,20 @@
 import json
 import logging
+import time
 
 import pytest
 import structlog
+from aiogram.types import Update
 from opentelemetry.sdk.trace import TracerProvider
 
+from app.bot.middleware import UpdateMiddleware
 from app.core.logging import configure_logging
-from app.core.metrics import DATABASE_OPERATIONS, observe_database_operation
+from app.core.metrics import (
+    DATABASE_OPERATIONS,
+    UPDATE_IN_PROGRESS,
+    UPDATES,
+    observe_database_operation,
+)
 from app.core.telemetry import configure_tracing
 
 
@@ -48,3 +56,28 @@ async def test_database_operation_metrics_record_success_and_failure() -> None:
             raise ValueError("failure")
     assert success._value.get() == before_success + 1
     assert failed._value.get() == before_failed + 1
+
+
+async def test_update_middleware_records_failure_and_releases_context() -> None:
+    event = Update.model_validate(
+        {
+            "update_id": 1,
+            "message": {
+                "message_id": 1,
+                "date": int(time.time()),
+                "chat": {"id": 42, "type": "private"},
+                "text": "/start",
+            },
+        }
+    )
+    counter = UPDATES.labels(update_type="message", outcome="error")
+    before_count = counter._value.get()
+    before_active = UPDATE_IN_PROGRESS._value.get()
+
+    async def fail(_event: object, _data: dict[str, object]) -> None:
+        raise ValueError("handler failed")
+
+    with pytest.raises(ValueError, match="handler failed"):
+        await UpdateMiddleware()(fail, event, {})
+    assert counter._value.get() == before_count + 1
+    assert UPDATE_IN_PROGRESS._value.get() == before_active
