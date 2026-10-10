@@ -1,6 +1,6 @@
 [project]
 name = "aiogram-app"
-version = "0.1.0"
+version = "0.1.1"
 description = "Production-ready Aiogram bot template"
 authors = [{ name = "Igor Lashkov", email = "rwrotson@yandex.ru" }]
 readme = "README.md"
