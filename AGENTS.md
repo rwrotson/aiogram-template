@@ -10,7 +10,7 @@ Use uv for dependencies and commands:
 uv sync --all-extras --all-groups
 uv run poe serve
 uv run poe check          # fmt-check, lint, lint-imports, typecheck, test
-uv run --all-extras --group docs mkdocs build --strict
+uv run --all-extras --group docs properdocs build --strict
 ```
 
 Individual tasks: `fmt`, `fmt-check`, `lint`, `lint-imports`, `typecheck`, `test`, `test-fast` (no coverage), `test-integration`, `test-integration-postgres`, `test-integration-redis`, `docs`, `audit`. CI runs formatting, lint, import-linter contracts, strict MyPy, pytest with 95% coverage, tests against the lowest allowed direct dependencies, PostgreSQL and Redis integration tests, package/docs/container builds, dependency audit, and an image vulnerability scan.
@@ -38,24 +38,24 @@ Follow the import direction in `docs/architecture.md`: Telegram interface → se
 
 - Inspect `git status` before editing. Preserve existing uncommitted changes and limit edits to the requested task.
 - Do not create Git commits. After completing and checking a meaningful, independently committable part of the work, pause and give the user a one-line Conventional Commit message in chat. Resume only after the user responds.
-- Run `uv run poe check` after application code changes. After documentation source or public docstring changes, also run `uv run --all-extras --group docs mkdocs build --strict`.
+- Run `uv run poe check` after application code changes. After documentation source or public docstring changes, also run `uv run --all-extras --group docs properdocs build --strict`.
 - Do not lower coverage thresholds, disable checks, or add lint and type suppressions solely to pass CI. Explain necessary suppressions at the affected line.
 - Use non-rewriting checks for verification; run formatters or `--fix` only when intentionally editing files. Pre-commit's Ruff hooks rewrite files.
 - Report which checks ran, which were skipped, and why. When no PostgreSQL DSN is configured, report integration tests as skipped rather than as full integration verification; `test-fast` is not the full CI suite.
 - For webhook changes, test accepted and rejected secret headers, registration behavior, and error outcomes. For commands, test responses, FSM state transitions, cancellation, and behavior with and without Redis.
 - Keep mutable settings and storage state scoped to the application or update. Tests must pass in random order without depending on process-wide state.
-- Edit `Settings` field descriptions and source docstrings, then rebuild MkDocs; do not edit generated configuration or reference pages.
+- Edit `Settings` field descriptions and source docstrings, then rebuild the docs with ProperDocs; do not edit generated configuration or reference pages.
 
 ## Deployment and releases
 
-The production image runs one bot process and logs to stdout. `compose.yml` binds the operational aiohttp port to localhost on the VPS and rotates container logs. An external TLS reverse proxy should forward only the configured webhook path and must block public access to `/metrics`, `/ready`, and `/live`. `compose.dev.yml` adds source reload and optional database profiles. Version tags run CI, then publish an amd64/arm64 image to GHCR and MkDocs to GitHub Pages. The VPS update is manual.
+The production image runs one bot process and logs to stdout. `compose.yml` binds the operational aiohttp port to localhost on the VPS and rotates container logs. An external TLS reverse proxy should forward only the configured webhook path and must block public access to `/metrics`, `/ready`, and `/live`. `compose.dev.yml` adds source reload and optional database profiles. Version tags run CI, then publish an amd64/arm64 image to GHCR and the ProperDocs site to GitHub Pages. The VPS update is manual.
 
-The user's `.env` and tokens stay untracked. Update README, `.env.example`, and MkDocs when changing public settings, commands, storage extras, or deployment instructions.
+The user's `.env` and tokens stay untracked. Update README, `.env.example`, and the docs when changing public settings, commands, storage extras, or deployment instructions.
 
 ## Documentation and comments
 
 - Write documentation, docstrings, and comments in English. Keep them brief and factual; describe each entity's purpose and relevant behavior without lecturing or editorial commentary.
-- Do not write module docstrings. Package docstrings in `__init__.py` are allowed. Describe package behavior and any module-level nuance in README, AGENTS.md, or MkDocs when it needs explanation.
+- Do not write module docstrings. Package docstrings in `__init__.py` are allowed. Describe package behavior and any module-level nuance in README, AGENTS.md, or the docs when it needs explanation.
 - Give every public class, function, and method a docstring, preferably one line. Describe its overall purpose without repeating its name, signature, types, or obvious implementation. Test functions are identified by their names and do not need docstrings.
 - Add docstrings to protected and private objects only when they explain important behavior that the code does not make clear.
 - Keep inline comments only for non-obvious behavior, constraints, or decisions. Put a short comment on the relevant line when it fits; otherwise put it immediately above. Keep required tool directives such as `noqa`.

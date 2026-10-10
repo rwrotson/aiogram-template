@@ -10,7 +10,7 @@ A GitHub template for a typed Aiogram Telegram bot. It supports long polling and
 - Redis FSM storage when Redis is configured; process-local memory otherwise
 - Bounded polling concurrency and a grace period for active handlers at shutdown
 - Strict MyPy, Ruff, import-linter layer contracts, pytest with 95% coverage, random test order, uv, pre-commit, and Commitizen
-- Docker Compose for development and VPS deployment, multi-architecture GHCR releases, and MkDocs on GitHub Pages
+- Docker Compose for development and VPS deployment, multi-architecture GHCR releases, and a ProperDocs site on GitHub Pages
 
 ## Quick start
 
@@ -42,7 +42,7 @@ Set `APP_UPDATE_MODE=webhook`, `APP_WEBHOOK_URL=https://bot.example.com/telegram
 uv sync --all-extras --all-groups
 uv run poe check
 uv run poe fmt
-uv run --all-extras --group docs mkdocs build --strict
+uv run --all-extras --group docs properdocs build --strict
 uv run pre-commit install
 ```
 
@@ -52,4 +52,4 @@ uv run pre-commit install
 
 Telegram handlers in `src/app/bot/` call transport-independent services in `src/app/services/`. Infrastructure adapters in `src/app/infra/` implement service ports. `src/app/main.py` owns the bot, dispatcher, aiohttp server, optional storage clients, and shutdown. See [architecture](docs/architecture.md).
 
-After using the GitHub template, change the distribution name in `pyproject.toml` and `DISTRIBUTION` in `src/app/main.py`, the project title in README and `mkdocs.yml`, `APP_NAME`, and the GitHub URLs. Keep the `app` import package unless you update imports, import-linter, coverage, MyPy, and reference generation together. Replace the demonstration handlers and survey with your own features. Keep `.env` and tokens untracked.
+After using the GitHub template, change the distribution name in `pyproject.toml` and `DISTRIBUTION` in `src/app/main.py`, the project title in README and `properdocs.yml`, `APP_NAME`, and the GitHub URLs. Keep the `app` import package unless you update imports, import-linter, coverage, MyPy, and reference generation together. Replace the demonstration handlers and survey with your own features. Keep `.env` and tokens untracked.

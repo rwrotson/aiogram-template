@@ -12,7 +12,7 @@ The development stage installs all extras and reloads the bot when Python source
 
 ## Release and VPS
 
-A `v*` tag runs CI, scans a release candidate, publishes an amd64/arm64 image to GHCR, and deploys MkDocs to GitHub Pages. Set repository variable `UV_SYNC_EXTRAS` to flags such as `--extra redis` before tagging when production needs optional clients. The default image has core dependencies only. The VPS update is manual.
+A `v*` tag runs CI, scans a release candidate, publishes an amd64/arm64 image to GHCR, and deploys the ProperDocs site to GitHub Pages. Set repository variable `UV_SYNC_EXTRAS` to flags such as `--extra redis` before tagging when production needs optional clients. The default image has core dependencies only. The VPS update is manual.
 
 On the VPS, place `compose.yml` beside a private `.env` file. Set `IMAGE_REF` to the released GHCR image, `APP_ENVIRONMENT=production`, `APP_BOT_TOKEN`, and any storage settings. Then run:
 

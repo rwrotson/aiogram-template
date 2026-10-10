@@ -107,7 +107,7 @@ jobs:
           enable-cache: true
       - run: uv sync --locked --all-extras --all-groups
       - run: uv build
-      - run: uv run --no-sync mkdocs build --strict
+      - run: uv run --no-sync properdocs build --strict
       - run: uv run --no-sync poe audit
 
   container:

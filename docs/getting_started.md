@@ -25,7 +25,7 @@ For webhook mode, set `APP_UPDATE_MODE=webhook`, `APP_WEBHOOK_URL` to a public H
 uv sync --all-extras --all-groups
 uv run poe check
 uv run poe test-fast
-uv run --all-extras --group docs mkdocs build --strict
+uv run --all-extras --group docs properdocs build --strict
 ```
 
 Tests run in random order. PostgreSQL and Redis integration tests require `APP_POSTGRES_ORM__DSN` and `APP_REDIS__DSN`, respectively. Ordinary tests skip an integration suite when its service is absent; `test-integration-postgres` and `test-integration-redis` fail when the selected service is missing. `test-integration` runs both. CI supplies both services in separate jobs. The repository contains no ORM models or migrations to apply.

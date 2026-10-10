@@ -93,6 +93,7 @@ docs = [
     { name = "mkdocs-material" },
     { name = "mkdocs-minify-plugin" },
     { name = "mkdocstrings", extra = ["python"] },
+    { name = "properdocs" },
 ]
 
 [package.metadata]
@@ -136,6 +137,7 @@ docs = [
     { name = "mkdocs-material", specifier = ">=9.7.7" },
     { name = "mkdocs-minify-plugin", specifier = ">=0.8.0" },
     { name = "mkdocstrings", extras = ["python"], specifier = ">=1.0.6" },
+    { name = "properdocs", specifier = ">=1.6.7" },
 ]
 
 [[package]]
