@@ -28,7 +28,7 @@ uv run poe test-fast
 uv run --all-extras --group docs properdocs build --strict
 ```
 
-Tests run in random order. PostgreSQL and Redis integration tests require `APP_POSTGRES_ORM__DSN` and `APP_REDIS__DSN`, respectively. Ordinary tests skip an integration suite when its service is absent; `test-integration-postgres` and `test-integration-redis` fail when the selected service is missing. `test-integration` runs both. CI supplies both services in separate jobs. The repository contains no ORM models or migrations to apply.
+Tests run in parallel and in random order. PostgreSQL and Redis integration tests require `APP_POSTGRES_ORM__DSN` and `APP_REDIS__DSN`, respectively. `poe test` and `test-fast` do not collect `tests/integration`; `uv run poe test-live` runs it and fails when a DSN is missing, and `-m postgres_integration` or `-m redis_integration` selects one backend. Other tests run in parallel with network sockets blocked except loopback. CI supplies both services in separate jobs. The repository contains no ORM models or migrations to apply.
 
 ## Add a feature
 

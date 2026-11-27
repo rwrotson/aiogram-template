@@ -74,7 +74,7 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --locked --all-extras --all-groups
-      - run: uv run --no-sync poe test-integration-postgres
+      - run: uv run --no-sync poe test-live -m postgres_integration
 
   integration-redis:
     runs-on: ubuntu-latest
@@ -96,7 +96,7 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --locked --all-extras --all-groups
-      - run: uv run --no-sync poe test-integration-redis
+      - run: uv run --no-sync poe test-live -m redis_integration
 
   build:
     runs-on: ubuntu-latest

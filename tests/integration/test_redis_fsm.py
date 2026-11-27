@@ -9,7 +9,7 @@ from pydantic import SecretStr
 from app.config import RedisSettings, Settings
 from app.main import create_app
 
-pytestmark = [pytest.mark.integration, pytest.mark.redis_integration]
+pytestmark = [pytest.mark.integration, pytest.mark.enable_socket, pytest.mark.redis_integration]
 
 
 async def test_redis_fsm_persists_data_and_expires_it(

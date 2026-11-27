@@ -1,3 +1,4 @@
+# PROJECT ----------------------------------------------------------------------
 [project]
 name = "aiogram-app"
 version = "0.1.1"
@@ -51,7 +52,9 @@ dev = [
     "pytest-cov>=7.1.0",
     "pytest-asyncio>=1.4.0",
     "pytest-randomly>=5.0.0",
+    "pytest-socket>=0.8.1",
     "pytest-timeout>=2.4.0",
+    "pytest-xdist>=3.8.0",
     "ruff>=0.16.10",
     "watchfiles>=1.2.0",
 ]
@@ -64,21 +67,31 @@ docs = [
     "properdocs>=1.6.7",
 ]
 
+
+# BUILD BACKEND ----------------------------------------------------------------
 [build-system]
 requires = ["uv_build>=0.12.24,<0.13"]
 build-backend = "uv_build"
 
 [tool.uv]
 # Security floors for transitive dependencies.
-constraint-dependencies = ["urllib3>=2.8.0", "virtualenv>=21.7.13"]
+constraint-dependencies = [
+    "certifi>=2026.10.18",
+    "filelock>=4.2.1",
+    "urllib3>=2.8.0",
+    "virtualenv>=21.14.9",
+]
 
 [tool.uv.build-backend]
 module-name = "app"
 module-root = "src"
 
+
+# PYTEST -----------------------------------------------------------------------
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra --tb=short --strict-markers --strict-config"
+# Sockets are blocked except Unix sockets (xdist workers) and loopback (local aiohttp test servers).
+addopts = "-ra --tb=short --strict-markers --strict-config -n auto --disable-socket --allow-unix-socket --allow-hosts=127.0.0.1,::1"
 markers = [
     "integration: requires an external service",
     "postgres_integration: requires a PostgreSQL database",
@@ -94,16 +107,24 @@ timeout = 30
 source = ["app"]
 omit = ["*/__init__.py"]
 branch = true
+parallel = true
+concurrency = ["multiprocessing"]
 
 [tool.coverage.report]
 show_missing = true
+skip_covered = false
 fail_under = 95
 
+
+# MYPY -------------------------------------------------------------------------
 [tool.mypy]
 python_version = "3.14"
 mypy_path = "src"
+explicit_package_bases = true
 files = ["src", "tests", "docs"]
+exclude_gitignore = true
 strict = true
+disallow_any_unimported = true
 warn_unused_ignores = true
 plugins = ["pydantic.mypy"]
 
@@ -112,6 +133,8 @@ init_forbid_extra = true
 init_typed = true
 warn_required_dynamic_aliases = true
 
+
+# RUFF -------------------------------------------------------------------------
 [tool.ruff]
 line-length = 100
 target-version = "py314"
@@ -191,6 +214,16 @@ max-complexity = 8
 [tool.ruff.lint.isort]
 known-first-party = ["app"]
 
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+docstring-code-format = true
+docstring-code-line-length = "dynamic"
+
+
+# COMMITIZEN -------------------------------------------------------------------
 [tool.commitizen]
 name = "cz_conventional_commits"
 tag_format = "v$version"
@@ -199,6 +232,8 @@ version_provider = "uv"
 update_changelog_on_bump = true
 major_version_zero = true
 
+
+# IMPORT-LINTER ----------------------------------------------------------------
 [tool.importlinter]
 root_package = "app"
 include_external_packages = true
@@ -230,6 +265,8 @@ type = "forbidden"
 source_modules = ["app.core"]
 forbidden_modules = ["app.bot", "app.services", "app.infra"]
 
+
+# POETHEPOET -------------------------------------------------------------------
 [tool.poe.tasks]
 serve = "python -m app.main"
 fmt = "ruff format ."
@@ -237,16 +274,18 @@ fmt-check = "ruff format --check ."
 lint = "ruff check ."
 lint-imports = "lint-imports"
 typecheck = "mypy"
-test = "pytest --cov=app"
+test = "pytest --cov"
 test-fast = "pytest"
-test-integration = "pytest --no-cov -m integration"
-test-integration-postgres = "pytest --no-cov -m postgres_integration"
-test-integration-redis = "pytest --no-cov -m redis_integration"
+quick = ["lint", "lint-imports", "typecheck"]
 docs = "properdocs serve"
 check = ["fmt-check", "lint", "lint-imports", "typecheck", "test"]
 
+[tool.poe.tasks.test-live]
+cmd = "pytest tests/integration --live -n 0 -p no:randomly"
+envfile = { optional = [".env"] }
+
 [tool.poe.tasks.audit]
 shell = """
-uv export --locked --all-extras --no-dev --no-emit-project --no-hashes --output-file requirements-audit.txt
-uv run --with pip-audit pip-audit --requirement requirements-audit.txt --no-deps
+uv export --quiet --format requirements-txt --all-extras --all-groups --locked --no-emit-project --no-hashes --output-file requirements-audit.txt
+uv run --locked --with pip-audit pip-audit --requirement requirements-audit.txt --no-deps
 """

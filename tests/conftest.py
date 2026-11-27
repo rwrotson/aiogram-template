@@ -15,6 +15,16 @@ from app.config import Settings
 from app.infra.storage import base
 
 
+def pytest_addoption(parser: pytest.Parser) -> None:
+    parser.addoption("--live", action="store_true", help="collect tests/integration")
+
+
+def pytest_ignore_collect(collection_path: Path, config: pytest.Config) -> bool | None:
+    if collection_path.name == "integration" and collection_path.parent.name == "tests":
+        return not config.getoption("--live")
+    return None
+
+
 @pytest.fixture(autouse=True)
 def isolated_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Keep developer settings and the local .env file out of tests."""
@@ -29,9 +39,14 @@ def restore_logging() -> Iterator[None]:
     """Restore global logging after each application test."""
     root = logging.getLogger()
     handlers, level = root.handlers[:], root.level
+    config = structlog.get_config()
     yield
-    root.handlers, root.level = handlers, level
-    structlog.reset_defaults()
+    for handler in root.handlers:
+        if handler not in handlers:
+            handler.close()
+    root.handlers = handlers
+    root.setLevel(level)  # Unlike assigning .level, this clears cached isEnabledFor results.
+    structlog.configure(**config)
 
 
 @pytest.fixture
