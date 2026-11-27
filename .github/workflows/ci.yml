@@ -109,6 +109,13 @@ jobs:
       - run: uv build
       - run: uv run --no-sync properdocs build --strict
       - run: uv run --no-sync poe audit
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          skip-dirs: .venv
+          exit-code: "1"
+          severity: CRITICAL,HIGH
 
   container:
     runs-on: ubuntu-latest

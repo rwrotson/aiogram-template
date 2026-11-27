@@ -3,6 +3,7 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -19,6 +20,15 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - name: Check that the tag matches the project version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          version="$(uv version --short)"
+          if [ "${GITHUB_REF_NAME#v}" != "$version" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match project version ${version}"
+            exit 1
+          fi
       - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Normalize image name
@@ -47,12 +57,15 @@ jobs:
           image-ref: release-candidate
           exit-code: "1"
           severity: CRITICAL,HIGH
-      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+      # Manual runs stop after the scan; only version tags push images.
+      - if: startsWith(github.ref, 'refs/tags/v')
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Publish amd64 and arm64 images
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -66,8 +79,10 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  # The github-pages environment accepts only v* tags, so manual runs only build and scan the image.
   docs:
     needs: ci
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -83,8 +98,12 @@ jobs:
           enable-cache: true
       - run: uv sync --locked --all-extras --all-groups
       - run: uv run --no-sync properdocs build --strict
+      # Reruns keep earlier attempts' artifacts and deploy-pages rejects duplicate names.
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
+          name: github-pages-${{ github.run_attempt }}
           path: site
       - id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+        with:
+          artifact_name: github-pages-${{ github.run_attempt }}
