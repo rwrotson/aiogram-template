@@ -239,6 +239,46 @@ root_package = "app"
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
+name = "Package layers"
+type = "layers"
+layers = ["app.main", "app.bot", "app.container", "app.infra", "app.services | app.core | app.config"]
+
+[[tool.importlinter.contracts]]
+name = "Bot modules layers"
+type = "layers"
+containers = ["app.bot"]
+layers = ["factory", "handlers | middleware"]
+exhaustive = true
+
+[[tool.importlinter.contracts]]
+name = "Service modules layers"
+type = "layers"
+containers = ["app.services"]
+layers = ["faq | greeting", "errors"]
+exhaustive = true
+
+[[tool.importlinter.contracts]]
+name = "Core modules layers"
+type = "layers"
+containers = ["app.core"]
+layers = ["logging | metrics | telemetry"]
+exhaustive = true
+
+[[tool.importlinter.contracts]]
+name = "Infrastructure modules layers"
+type = "layers"
+containers = ["app.infra"]
+layers = ["faq | storage"]
+exhaustive = true
+
+[[tool.importlinter.contracts]]
+name = "Storage modules layers"
+type = "layers"
+containers = ["app.infra.storage"]
+layers = ["clickhouse | mongodb | postgres_orm | postgres_raw | redis", "base | models"]
+exhaustive = true
+
+[[tool.importlinter.contracts]]
 name = "Services stay independent of transport, storage and configuration"
 type = "forbidden"
 source_modules = ["app.services"]
@@ -264,6 +304,38 @@ name = "Operational support does not depend on business or Telegram layers"
 type = "forbidden"
 source_modules = ["app.core"]
 forbidden_modules = ["app.bot", "app.services", "app.infra"]
+
+[[tool.importlinter.contracts]]
+name = "Transitive dependencies are not imported directly"
+type = "forbidden"
+source_modules = ["app"]
+forbidden_modules = [
+    "aiofiles",
+    "aiohappyeyeballs",
+    "aiosignal",
+    "annotated_types",
+    "attr",
+    "certifi",
+    "charset_normalizer",
+    "dns",
+    "dotenv",
+    "frozenlist",
+    "greenlet",
+    "idna",
+    "lz4",
+    "magic_filter",
+    "multidict",
+    "propcache",
+    "psycopg_binary",
+    "pydantic_core",
+    "requests",
+    "typing_extensions",
+    "typing_inspection",
+    "urllib3",
+    "yarl",
+]
+# Direct dependencies import them internally.
+allow_indirect_imports = true
 
 
 # POETHEPOET -------------------------------------------------------------------

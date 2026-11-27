@@ -21,11 +21,15 @@ The Telegram interface and infrastructure may import services and never each oth
 - Services do not import Aiogram, settings, or drivers.
 - Infrastructure implements service ports without importing handlers.
 - Use absolute `app.` imports.
+- Package order is `main` → `bot` → `container` → `infra` → `services | core | config`; the last three are independent of each other.
+- Every package with more than one module has an exhaustive `layers` contract: a new module must be added to it.
+- A new third-party dependency belongs to the lowest layer that needs it, and to that layer's extra.
+- Packages installed only as transitive dependencies are not imported directly. `psycopg_pool` is the exception: it comes from the `psycopg[pool]` feature the `postgres-raw` extra declares.
 - Storage clients are opened during the application lifecycle and closed at shutdown.
 - An external outage affects `/ready`, not `/live` or process startup.
 - The default bot works with only a token; a configured backend requires its extra.
 
-Import-linter checks these boundaries with `uv run poe lint-imports`.
+Import-linter checks the package layers, exhaustive per-package layers, the service, infrastructure, configuration, and operations boundaries, and direct imports of transitive dependencies with `uv run poe lint-imports`; the contracts are in `pyproject.toml`. Rules that the contracts do not cover are checked in review.
 
 ## Lifecycle
 
