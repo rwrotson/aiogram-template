@@ -2,6 +2,12 @@ site_name: aiogram-template
 site_description: A production-ready Aiogram bot template
 repo_url: https://github.com/rwrotson/aiogram-template
 repo_name: rwrotson/aiogram-template
+site_url: https://rwrotson.github.io/aiogram-template/
+edit_uri: edit/main/docs/
+
+exclude_docs: |
+  /agents/
+  /plans/
 
 watch:
   - src/app/
@@ -16,6 +22,7 @@ nav:
   - Observability: observability.md
   - Deployment: deployment.md
   - Configuration: configuration.md
+  - Notes: notes.md
   - API Reference: reference/
 
 theme:
@@ -42,6 +49,8 @@ theme:
     - search.suggest
     - search.highlight
     - content.code.copy
+    - content.action.edit
+    - content.code.annotate
 
 plugins:
   - search
@@ -65,6 +74,7 @@ plugins:
             show_source: true
             show_root_heading: true
             separate_signature: true
+            merge_init_into_class: true
             filters:
               - "!^_"
 
@@ -81,6 +91,9 @@ markdown_extensions:
       base_path: [.]
   - pymdownx.tabbed:
       alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - tables
   - toc:
       permalink: true

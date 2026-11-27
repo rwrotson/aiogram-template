@@ -1,5 +1,8 @@
+import html
 import json
+import re
 from collections.abc import Iterator
+from typing import TypeAliasType
 
 import mkdocs_gen_files
 from pydantic import BaseModel, SecretStr
@@ -15,18 +18,25 @@ DOCKER_VARIABLES = [
 
 def type_name(field: FieldInfo) -> str:
     """Format a field type for a Markdown table cell."""
-    name = str(field.annotation).replace("typing.", "").replace("pydantic.types.", "")
-    return name.replace("<class '", "").replace("'>", "").replace("|", "\\|")
+    annotation = field.annotation
+    if isinstance(annotation, TypeAliasType):
+        annotation = annotation.__value__
+
+    name = str(annotation).replace("<class '", "").replace("'>", "")
+    name = re.sub(r"\b(?:[a-z_]+\.)+([A-Za-z_]\w*)", r"\1", name)
+
+    # A backslash-escaped pipe stays visible inside a code span, so use an HTML entity.
+    return f"<code>{html.escape(name).replace('|', '&#124;')}</code>"
 
 
 def default_value(field: FieldInfo) -> str:
-    """Format a field default for a Markdown table cell."""
+    """Format a field default for a Markdown table cell; secret defaults are never shown."""
     if field.is_required():
         return "required"
     value = field.get_default(call_default_factory=True)
-    if isinstance(value, SecretStr):
-        value = value.get_secret_value()
-    return "—" if value is None else f"`{json.dumps(value)}`"
+    if value is None or isinstance(value, SecretStr):
+        return "—"
+    return f"`{json.dumps(value, default=str)}`"
 
 
 def table(rows: Iterator[tuple[str, FieldInfo]]) -> list[str]:
@@ -35,7 +45,7 @@ def table(rows: Iterator[tuple[str, FieldInfo]]) -> list[str]:
     for variable, field in rows:
         description = field.description or ""
         lines.append(
-            f"| `{variable}` | `{type_name(field)}` | {default_value(field)} | {description} |"
+            f"| `{variable}` | {type_name(field)} | {default_value(field)} | {description} |"
         )
     return lines
 
