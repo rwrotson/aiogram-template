@@ -1,62 +1,106 @@
-# Repository guide
+# AGENTS.md
 
-This repository is a GitHub template for an Aiogram Telegram bot. The distribution is `aiogram-app`, the import package is `app`, and Python 3.14+ is required.
+A template for an Aiogram Telegram bot that runs with only a token, serves operational endpoints through aiohttp, and adds optional PostgreSQL and Redis backends through extras.
+
+Distribution name: `aiogram-app` | Python package: `app` | Environment prefix: `APP_`
+
+## Load instructions by path
+
+For each area of the task, mirror its repo-relative path under [docs/agents](docs/agents/) and read the matching guide before editing: for `src/app/bot/handlers.py`, read the [bot guide](docs/agents/src/app/bot.md). For any code change, also read [docs/architecture.md](docs/architecture.md). The [Read when](#read-when) table lists every guide.
 
 ## Commands
 
-Use uv for dependencies and commands:
+This project uses [uv](https://docs.astral.sh/uv/) for package management; the full task list is in `[tool.poe.tasks]` in `pyproject.toml`.
 
 ```bash
 uv sync --all-extras --all-groups
-uv run poe serve
-uv run poe check          # fmt-check, lint, lint-imports, typecheck, test
+uv run poe serve        # start the bot (polling by default); needs APP_BOT_TOKEN
+uv run poe check        # fmt-check, lint, lint-imports, typecheck, test (95% coverage)
+uv run poe quick        # lint, lint-imports, typecheck (no formatting check or tests)
+uv run poe test-fast    # pytest without coverage
+uv run poe test-live    # tests/integration against real services; needs --live and DSNs
+uv run poe fmt          # ruff format . (rewrites files)
+uv run poe audit        # pip-audit over locked dependencies
 uv run --all-extras --group docs properdocs build --strict
 ```
 
-Individual tasks: `fmt`, `fmt-check`, `lint`, `lint-imports`, `typecheck`, `test`, `test-fast` (no coverage), `test-integration`, `test-integration-postgres`, `test-integration-redis`, `docs`, `audit`. CI runs formatting, lint, import-linter contracts, strict MyPy, pytest with 95% coverage, tests against the lowest allowed direct dependencies, PostgreSQL and Redis integration tests, package/docs/container builds, dependency audit, and an image vulnerability scan.
-
-## Dependencies
-
-- Put runtime imports in project dependencies, optional backend drivers in the matching extra, development tools in `dev`, and documentation tools in `docs`.
-- Change dependencies through uv and update `pyproject.toml` and `uv.lock` together. Verify the lock with `uv sync --locked --all-extras --all-groups`.
-- Raise a direct dependency's lower bound when code needs a newer API. Verify new or upgraded dependencies against their declared lower bounds and the lowest-direct-dependencies CI job; the locked environment alone does not check them.
-- Use the project environment for tools. Do not install packages manually into `.venv` or treat local installations as declared dependencies.
-
-## Application structure
-
-- `src/app/main.py` defines `create_app()` and owns the bot, dispatcher, aiohttp server, and startup and shutdown. `uv run poe serve` starts polling by default. Polling concurrency is bounded and shutdown waits briefly for active updates before closing dependencies. A valid `APP_BOT_TOKEN` is required. `APP_UPDATE_MODE=webhook` also requires a public HTTPS `APP_WEBHOOK_URL` and `APP_WEBHOOK_SECRET`.
-- `src/app/bot/` contains Aiogram routers, middleware, FSM states, and handler composition. Build a fresh Router for every dispatcher; Aiogram routers cannot be attached twice. Configure event isolation for FSM updates, using process locks with memory and Redis locks with Redis. Keep handlers thin and use Aiogram context for application-scoped dependencies.
-- `src/app/services/` contains use cases, transport-independent types, errors, and ports; it never imports Aiogram, settings, or database drivers. The greeting example is here.
-- `src/app/config/` contains Pydantic Settings, `APP_*` environment loading, and defaults in code. Storage settings are nested models (`APP_REDIS__DSN`) with `SecretStr` secrets. Every setting must appear in `.env.example`; a test enforces it, and the docs configuration page is generated from `Settings`.
-- `src/app/core/` contains logging, metrics, and optional tracing. `/live`, `/ready`, and `/metrics` are provided by aiohttp in both update modes. `/ready` checks Telegram, update registration, and configured storage; `/live` only checks the local process.
-- `src/app/infra/storage/` contains optional async clients and readiness checks. Backends are registered as `BackendSpec` entries in `base.py`; features access them through application-scoped `StorageManager`. No storage service is required by default. A configured backend requires its matching project extra. A configured Redis also gives Aiogram persistent FSM storage with a configurable TTL; otherwise FSM uses process memory.
-- `tests/` mirrors the layers (`bot/`, `infra/`, `core/`, `config/`). Shared fakes live in `tests/fakes.py` and shared fixtures in `tests/conftest.py`. Use `fake_backends` to stub storage clients. Test routing and FSM behavior with `Dispatcher.feed_raw_update()` and mocked Telegram API calls. PostgreSQL and Redis integration suites skip without their DSNs and fail when selected explicitly.
-
-Follow the import direction in `docs/architecture.md`: Telegram interface → services ← infrastructure, with infrastructure implementing ports defined in services. import-linter contracts in `pyproject.toml` enforce it. Use absolute `app.` imports and complete type annotations. Storage clients are initialized during the application lifecycle and closed at shutdown. An external outage should affect `/ready`, not `/live` or process startup. Keep the default bot usable with only a token, without credentials for storage services.
-
-## Change workflow
+## Change Workflow
 
 - Inspect `git status` before editing. Preserve existing uncommitted changes and limit edits to the requested task.
-- Do not create Git commits. After completing and checking a meaningful, independently committable part of the work, pause and give the user a one-line Conventional Commit message in chat. Resume only after the user responds.
-- Run `uv run poe check` after application code changes. After documentation source or public docstring changes, also run `uv run --all-extras --group docs properdocs build --strict`.
-- Do not lower coverage thresholds, disable checks, or add lint and type suppressions solely to pass CI. Explain necessary suppressions at the affected line.
-- Use non-rewriting checks for verification; run formatters or `--fix` only when intentionally editing files. Pre-commit's Ruff hooks rewrite files.
-- Report which checks ran, which were skipped, and why. When no PostgreSQL DSN is configured, report integration tests as skipped rather than as full integration verification; `test-fast` is not the full CI suite.
-- For webhook changes, test accepted and rejected secret headers, registration behavior, and error outcomes. For commands, test responses, FSM state transitions, cancellation, and behavior with and without Redis.
-- Keep mutable settings and storage state scoped to the application or update. Tests must pass in random order without depending on process-wide state.
+- When working from an active staged plan in `docs/plans/`, read it before work, implement only the first incomplete stage, append dated evidence, and stop at the stage boundary.
+- Run `uv run poe check` after application code changes. After documentation source, `properdocs.yml`, or public docstring changes, also run `uv run --all-extras --group docs properdocs build --strict`.
+- The Claude Code hooks in `.claude/` run `ruff format` and `ruff check --fix` on the Python file just edited (an intentional edit) and, at Stop, run `poe quick` when Python files changed during the turn; they do not replace `poe check`.
+- Use non-rewriting checks (`poe fmt-check`, `poe lint`) for verification; run formatters or `--fix` only when intentionally editing files. Pre-commit's Ruff hooks rewrite files.
+- Report which checks ran, which were skipped, and why. Report integration tests as skipped when no DSN is configured; `poe test-fast` is not the full CI suite: it skips coverage, and CI also runs the lowest-dependency job, PostgreSQL and Redis integration tests, package, docs, and container builds, and security scans.
+- When changing public settings, commands, storage extras, or deployment instructions, update README, `.env.example`, and the docs.
+
+## Commit Handoff
+
+- Do not create or amend commits on the user's behalf, except where an active staged plan in `docs/plans/` authorizes it.
+- After completing and verifying a meaningful, self-contained part of the work, pause before starting the next part.
+- At each pause, send the user a one-line English Conventional Commit message for the completed work. Resume when the user asks you to continue.
+
+## Layers
+
+```
+main      src/app/main.py        create_app(): bot, dispatcher, aiohttp server, startup and shutdown
+container src/app/container.py   per-application ownership of services, storage, and cleanup
+bot       src/app/bot/           Aiogram routers, middleware, FSM states, dispatcher composition
+infra     src/app/infra/         adapters for service ports; optional storage backends (extras)
+services  src/app/services/      use cases, transport-independent types, errors, ports
+config    src/app/config/        Pydantic Settings, APP_* loading, defaults
+core      src/app/core/          logging, metrics, optional tracing
+```
+
+Dependencies follow Telegram interface → services ← infrastructure; services import no Aiogram, settings, or drivers. The rules are in [docs/architecture.md](docs/architecture.md); `uv run poe lint-imports` enforces them.
+
+## Invariants
+
+- Do not lower coverage thresholds, disable checks, relax import-linter contracts, or add lint and type suppressions solely to pass CI. Explain necessary suppressions at the affected line.
+- The default bot must work with only `APP_BOT_TOKEN`, without credentials for storage services. A configured backend requires its matching extra.
+- An external outage affects `/ready`, not `/live` or process startup.
+- Build a fresh Router for every dispatcher, and keep mutable settings and storage state scoped to the application or update, never in module globals. Tests must pass in random order.
+- Expected failures raise a service error; handlers turn them into user replies.
+- Tests never use the network; Telegram API calls are mocked.
+- Code, docs, comments, and commit messages are in English.
+- Keep the user's `.env`, tokens, and secrets untracked.
+
+## Code Style
+
+- Use absolute `app.` imports. Services, infrastructure, and the Telegram interface follow the import direction above.
+- MyPy runs with `strict = true` over the project. All new code must have complete type annotations. Prefer `X | Y` over `Optional[X]`.
+
+## Python Formatting
+
+- Keep function signatures, calls, and collection literals on one line when they fit. When they need wrapping, put one parameter, argument, or item on each line. Add a trailing comma after the last entry when there are two or more entries so Ruff preserves the layout. Do not enable `COM812`.
+- Omit optional trailing commas in single-entry forms. Keep the required comma in a single-element tuple and any comma Ruff inserts in a wrapped signature with one parameter.
+
+## Documentation and Comments
+
+- Keep documentation, docstrings, and comments in English, short and factual. Describe each entity's purpose without editorial commentary or tutorials.
+- Do not add module docstrings. Package docstrings in `__init__.py` are allowed. Put package behavior and module details in README, this file, or `docs/`.
+- Give public classes, functions, and methods a docstring. Prefer one line describing their overall purpose; do not repeat names, signatures, or type annotations. Test functions are identified by their names and need no docstrings.
+- Add docstrings to protected or private objects only when they explain behavior that is not clear from code.
+- Keep inline comments only for non-obvious behavior or decisions. Put a short comment on the relevant line when it fits; otherwise place it immediately above. Retain necessary tool directives such as `# noqa` and `# type: ignore`.
+- A comment placed above a line or group of lines applies only to it. Separate that line or group from the code before and after it with a blank line, unless it starts or ends a block, so the comment's scope is clear. At module and class level, give each commented constant or attribute its own block, and keep uncommented related definitions together in one block.
+- In long functions, methods, and tests, separate logical steps (input validation, setup, execution, result handling; arrange, act, assert) with a single blank line. Do not add comments to label the steps. Keep short functions compact.
+- At module level, keep `UPPER_CASE` constants and lowercase objects (loggers, imported modules, routers, apps) in separate blocks divided by a blank line.
+- Prefer clearer names and more precise types over comments that restate code.
 - Edit `Settings` field descriptions and source docstrings, then rebuild the docs with ProperDocs; do not edit generated configuration or reference pages.
 
-## Deployment and releases
+## Read when
 
-The production image runs one bot process and logs to stdout. `compose.yml` binds the operational aiohttp port to localhost on the VPS and rotates container logs. An external TLS reverse proxy should forward only the configured webhook path and must block public access to `/metrics`, `/ready`, and `/live`. `compose.dev.yml` adds source reload and optional database profiles. Version tags run CI, then publish an amd64/arm64 image to GHCR and the ProperDocs site to GitHub Pages. The VPS update is manual.
-
-The user's `.env` and tokens stay untracked. Update README, `.env.example`, and the docs when changing public settings, commands, storage extras, or deployment instructions.
-
-## Documentation and comments
-
-- Write documentation, docstrings, and comments in English. Keep them brief and factual; describe each entity's purpose and relevant behavior without lecturing or editorial commentary.
-- Do not write module docstrings. Package docstrings in `__init__.py` are allowed. Describe package behavior and any module-level nuance in README, AGENTS.md, or the docs when it needs explanation.
-- Give every public class, function, and method a docstring, preferably one line. Describe its overall purpose without repeating its name, signature, types, or obvious implementation. Test functions are identified by their names and do not need docstrings.
-- Add docstrings to protected and private objects only when they explain important behavior that the code does not make clear.
-- Keep inline comments only for non-obvious behavior, constraints, or decisions. Put a short comment on the relevant line when it fits; otherwise put it immediately above. Keep required tool directives such as `noqa`.
-- Prefer clearer names and more precise types over comments that explain the code.
+| Task | Read |
+| --- | --- |
+| Any code change | [docs/architecture.md](docs/architecture.md) (layers, rules, errors, adding functionality) |
+| Working in `src/app/bot/` or `src/app/main.py`, handlers, FSM, webhook | [Bot guide](docs/agents/src/app/bot.md) |
+| Working in `src/app/services/` or adding a feature | [Services guide](docs/agents/src/app/services.md) |
+| Working in `src/app/config/`, settings, `.env.example` | [Config guide](docs/agents/src/app/config.md) |
+| Working in `src/app/core/`, logs, metrics, tracing, probes | [Core guide](docs/agents/src/app/core.md) |
+| Working in `src/app/infra/`, storage backends, Redis FSM | [Infrastructure guide](docs/agents/src/app/infra.md) |
+| Working in `tests/` | [Test guide](docs/agents/tests.md) |
+| Working in `docs/`, `properdocs.yml`, or public docstrings | [Docs guide](docs/agents/docs.md) |
+| Dependencies, extras, `pyproject.toml`, `uv.lock` | [Dependency guide](docs/agents/pyproject.md) |
+| CI, releases, container images, Dependabot | [GitHub guide](docs/agents/github.md) |
+| `Dockerfile`, `compose*.yml`, reverse proxy, VPS updates | [Deployment guide](docs/agents/deploy.md) |
+| Renaming the template | [Renaming checklist](docs/notes.md#renaming-the-template) |
