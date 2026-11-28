@@ -34,6 +34,15 @@ async def wait_registered(application: BotApplication) -> None:
     raise AssertionError("Telegram setup did not complete")
 
 
+async def wait_until(condition: Callable[[], bool]) -> None:
+    """Wait briefly for a condition to become true."""
+    for _ in range(200):
+        if condition():
+            return
+        await asyncio.sleep(0.01)
+    raise AssertionError("Condition was not met")
+
+
 def message_update() -> dict[str, object]:
     """Build one valid Telegram message update for runtime tests."""
     return {
@@ -471,7 +480,7 @@ async def test_shutdown_waits_for_active_update_before_closing_bot(
     update_task = asyncio.create_task(application.update_middleware(handle, event, {}))
     await entered.wait()
     stop_task = asyncio.create_task(application.stop())
-    await asyncio.sleep(0.05)
+    await wait_until(lambda: application._supervisor is None)
     assert not stop_task.done()
     cast("AsyncMock", bot.session.close).assert_not_awaited()
     release.set()
@@ -542,7 +551,7 @@ async def test_webhook_shutdown_waits_for_active_request(
         )
         await entered.wait()
         stop_task = asyncio.create_task(application.stop())
-        await asyncio.sleep(0.05)
+        await wait_until(lambda: application._site is None)
         cast("AsyncMock", bot.session.close).assert_not_awaited()
         release.set()
         response = await asyncio.wait_for(request_task, timeout=2)
