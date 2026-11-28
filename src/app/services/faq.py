@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from app.services.errors import NotFoundError
+from app.services.errors import FaqTopicNotFoundError
 
 
 class FaqRepository(Protocol):
@@ -21,5 +21,5 @@ class FaqService:
         """Return a topic answer or report that it is unknown."""
         answer = self._repository.get(topic)
         if answer is None:
-            raise NotFoundError(topic)
+            raise FaqTopicNotFoundError(topic)
         return answer

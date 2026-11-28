@@ -2,7 +2,7 @@
 
 - `src/app/services/` holds use cases, transport-independent types, errors, and ports. It never imports Aiogram, settings, or database drivers.
 - A port is a `Protocol` defined next to the service that needs it (`FaqRepository` in `faq.py`); infrastructure implements it.
-- Expected failures raise a subclass of `ServiceError` in `errors.py`, such as `NotFoundError`. Add new errors to the [error table](../../../architecture.md#errors).
+- Expected failures raise a subclass of `ServiceError` in `errors.py`, such as `NotFoundError`; give each feature its own subclass, such as `FaqTopicNotFoundError`, so replies stay specific. Add new errors to the [error table](../../../architecture.md#errors).
 - To add a feature:
     1. Put the rules in a service, with ports for anything it reads or writes.
     2. Implement the ports in `src/app/infra/`.
