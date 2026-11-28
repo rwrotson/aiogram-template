@@ -1,3 +1,5 @@
+import asyncio
+import contextvars
 import json
 import logging
 import time
@@ -84,3 +86,24 @@ async def test_update_middleware_records_failure_and_releases_context() -> None:
         await UpdateMiddleware()(fail, event, {})
     assert counter._value.get() == before_count + 1
     assert UPDATE_IN_PROGRESS._value.get() == before_active
+
+
+async def test_fresh_context_task_does_not_inherit_update_id(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    configure_logging("INFO", "json")
+    log = structlog.get_logger("test")
+
+    async def work(event: str) -> None:
+        log.info(event)
+
+    structlog.contextvars.bind_contextvars(update_id=1)
+    try:
+        await asyncio.create_task(work("inherited"))
+        await asyncio.create_task(work("isolated"), context=contextvars.Context())
+    finally:
+        structlog.contextvars.clear_contextvars()
+
+    inherited, isolated = (json.loads(line) for line in capsys.readouterr().out.splitlines())
+    assert inherited["update_id"] == 1
+    assert "update_id" not in isolated

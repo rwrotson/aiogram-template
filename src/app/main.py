@@ -1,4 +1,5 @@
 import asyncio
+import contextvars
 import signal
 from contextlib import AsyncExitStack, suppress
 from urllib.parse import urlsplit
@@ -194,7 +195,10 @@ class BotApplication:
             site = web.TCPSite(self._runner, self.settings.http_host, self.settings.http_port)
             await site.start()
             self._site = site
-            self._supervisor = asyncio.create_task(self._serve_updates())
+            self._supervisor = asyncio.create_task(
+                self._serve_updates(),
+                context=contextvars.Context(),
+            )
             structlog.get_logger().info("application_started", mode=self.settings.update_mode)
         except Exception:
             await self.stop()
@@ -206,7 +210,10 @@ class BotApplication:
         if supervisor is None:
             return
         if self.settings.update_mode == "polling" and self._polling_started:
-            stop_task = asyncio.create_task(self.dispatcher.stop_polling())
+            stop_task = asyncio.create_task(
+                self.dispatcher.stop_polling(),
+                context=contextvars.Context(),
+            )
             try:
                 done, _ = await asyncio.wait(
                     {stop_task, supervisor}, timeout=5, return_when=asyncio.FIRST_COMPLETED
@@ -279,7 +286,7 @@ async def run() -> None:
     for name in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(name, stopped.set)
     await application.start()
-    stop_wait = asyncio.create_task(stopped.wait())
+    stop_wait = asyncio.create_task(stopped.wait(), context=contextvars.Context())
     try:
         if application.settings.update_mode == "webhook":
             await stop_wait

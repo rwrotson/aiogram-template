@@ -6,3 +6,4 @@
 - Keep metric registries and tracer providers scoped to the application so tests can run in any order.
 - See [observability](../../../observability.md) for the user-facing description.
 - Ruff `banned-api` allows `logging.basicConfig`, `structlog.configure` and `logging.getLogger` only in `logging.py`; elsewhere use `structlog.get_logger()`.
+- Start lifecycle tasks with `context=contextvars.Context()` so the update-bound `update_id` does not leak into their logs (see the architecture guide).
