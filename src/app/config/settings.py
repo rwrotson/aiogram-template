@@ -16,7 +16,9 @@ class PostgresRawSettings(BaseModel):
     min_size: int = Field(default=0, ge=0, description="Connections kept open when idle")
     max_size: int = Field(default=10, ge=1, description="Maximum pool size")
     connect_timeout: float = Field(
-        default=5.0, gt=0, description="Seconds to wait for a connection"
+        default=5.0,
+        gt=0,
+        description="Seconds to wait for a connection",
     )
 
 
@@ -48,7 +50,9 @@ class MongoDBSettings(BaseModel):
     dsn: SecretStr = Field(description="MongoDB connection string")
     max_pool_size: int = Field(default=100, ge=1, description="Maximum connections per server")
     server_selection_timeout: float = Field(
-        default=5.0, gt=0, description="Seconds to find an available server"
+        default=5.0,
+        gt=0,
+        description="Seconds to find an available server",
     )
 
 
@@ -60,7 +64,9 @@ class RedisSettings(BaseModel):
     socket_timeout: float = Field(default=5.0, gt=0, description="Seconds per command")
     socket_connect_timeout: float = Field(default=5.0, gt=0, description="Seconds to connect")
     fsm_ttl_seconds: int = Field(
-        default=604800, ge=1, description="Lifetime of Redis FSM state and data in seconds"
+        default=604800,
+        ge=1,
+        description="Lifetime of Redis FSM state and data in seconds",
     )
 
 
@@ -68,43 +74,60 @@ class Settings(BaseSettings):
     """Load application and optional storage settings from the environment."""
 
     model_config = SettingsConfigDict(
-        env_prefix="APP_", env_file=".env", env_nested_delimiter="__", extra="ignore"
+        env_prefix="APP_",
+        env_file=".env",
+        env_nested_delimiter="__",
+        extra="ignore",
     )
 
     name: str = Field(default="Aiogram App", description="Telemetry service name")
     bot_token: SecretStr = Field(description="Telegram bot token from BotFather")
     update_mode: Literal["polling", "webhook"] = Field(
-        default="polling", description="How Telegram updates reach the bot"
+        default="polling",
+        description="How Telegram updates reach the bot",
     )
     webhook_url: str | None = Field(default=None, description="Public HTTPS webhook URL with path")
     webhook_secret: SecretStr | None = Field(
-        default=None, description="Secret sent in Telegram webhook request headers"
+        default=None,
+        description="Secret sent in Telegram webhook request headers",
     )
     http_host: str = Field(default="127.0.0.1", description="Host for health and webhook server")
     http_port: int = Field(default=8000, ge=1, le=65535, description="Health and webhook port")
     polling_max_concurrent_updates: int = Field(
-        default=100, ge=1, description="Maximum updates handled concurrently in polling mode"
+        default=100,
+        ge=1,
+        description="Maximum updates handled concurrently in polling mode",
     )
     shutdown_grace_seconds: float = Field(
-        default=15.0, gt=0, description="Seconds to wait for active updates during shutdown"
+        default=15.0,
+        gt=0,
+        description="Seconds to wait for active updates during shutdown",
     )
     environment: Literal["development", "production", "test"] = Field(
-        default="development", description="Deployment environment"
+        default="development",
+        description="Deployment environment",
     )
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
-        default="INFO", description="Root log level"
+        default="INFO",
+        description="Root log level",
     )
     log_format: Literal["json", "console"] | None = Field(
-        default=None, description="Log renderer; console in development and json otherwise"
+        default=None,
+        description="Log renderer; console in development and json otherwise",
     )
     otlp_endpoint: str | None = Field(
-        default=None, description="OTLP/HTTP traces endpoint; tracing is off when unset"
+        default=None,
+        description="OTLP/HTTP traces endpoint; tracing is off when unset",
     )
     readiness_timeout: float = Field(
-        default=2.0, gt=0, description="Seconds allowed for each storage readiness probe"
+        default=2.0,
+        gt=0,
+        description="Seconds allowed for each storage readiness probe",
     )
     readiness_cache_ttl: float = Field(
-        default=5.0, ge=0, description="Seconds to reuse the last readiness result"
+        default=5.0,
+        ge=0,
+        description="Seconds to reuse the last readiness result",
     )
     postgres_raw: PostgresRawSettings | None = None
     postgres_orm: PostgresOrmSettings | None = None
@@ -154,7 +177,8 @@ def nested_model(field: FieldInfo) -> type[BaseModel] | None:
 
 
 def env_fields(
-    model: type[BaseModel] = Settings, prefix: str = "APP_"
+    model: type[BaseModel] = Settings,
+    prefix: str = "APP_",
 ) -> Iterator[tuple[str, FieldInfo]]:
     """Yield every leaf setting with its environment variable name."""
     for name, field in model.model_fields.items():

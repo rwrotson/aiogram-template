@@ -79,6 +79,8 @@ def fake_backends(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
     """Replace optional client factories with one configurable mock."""
     create_handle = AsyncMock()
     monkeypatch.setattr(
-        base, "import_module", lambda _: SimpleNamespace(create_handle=create_handle)
+        base,
+        "import_module",
+        lambda _: SimpleNamespace(create_handle=create_handle),
     )
     return create_handle

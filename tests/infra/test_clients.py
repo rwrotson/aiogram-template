@@ -38,12 +38,13 @@ async def test_postgres_raw_client_lifecycle(monkeypatch: pytest.MonkeyPatch) ->
     handle = await postgres_raw.create_handle(
         PostgresRawSettings(dsn=SecretStr("postgresql://localhost/test"), max_size=3)
     )
-    assert created["conninfo"] == "postgresql://localhost/test"
-    assert created["max_size"] == 3
     acquired = await handle.acquire()
     await handle.check()
-    connection.execute.assert_awaited_once_with("SELECT 1")
     await handle.close()
+
+    assert created["conninfo"] == "postgresql://localhost/test"
+    assert created["max_size"] == 3
+    connection.execute.assert_awaited_once_with("SELECT 1")
     pool.close.assert_awaited_once()
     assert acquired is pool
 
@@ -65,11 +66,13 @@ async def test_postgres_orm_client_lifecycle(monkeypatch: pytest.MonkeyPatch) ->
     handle = await postgres_orm.create_handle(
         PostgresOrmSettings(dsn=SecretStr("postgresql+psycopg://localhost/test"), pool_size=2)
     )
-    assert engine_kwargs["pool_size"] == 2
-    assert await handle.acquire() is factory
+    acquired = await handle.acquire()
     await handle.check()
-    connection.execute.assert_awaited_once()
     await handle.close()
+
+    assert engine_kwargs["pool_size"] == 2
+    assert acquired is factory
+    connection.execute.assert_awaited_once()
     engine.dispose.assert_awaited_once()
 
 
@@ -81,23 +84,27 @@ async def test_mongodb_client_lifecycle(monkeypatch: pytest.MonkeyPatch) -> None
     handle = await mongodb.create_handle(MongoDBSettings(dsn=SecretStr("mongodb://localhost")))
     acquired = await handle.acquire()
     await handle.check()
-    client.admin.command.assert_awaited_once_with("ping")
     await handle.close()
+
+    client.admin.command.assert_awaited_once_with("ping")
     client.close.assert_awaited_once()
     assert acquired is client
 
 
 async def test_redis_client_lifecycle(monkeypatch: pytest.MonkeyPatch) -> None:
     client = create_autospec(Redis, instance=True)
+
     # redis-py declares commands as sync methods returning awaitables, so autospec cannot tell.
     client.ping = AsyncMock()
+
     monkeypatch.setattr("app.infra.storage.redis.Redis.from_url", lambda *_args, **_kwargs: client)
 
     handle = await redis.create_handle(RedisSettings(dsn=SecretStr("redis://localhost")))
     acquired = await handle.acquire()
     await handle.check()
-    client.ping.assert_awaited_once()
     await handle.close()
+
+    client.ping.assert_awaited_once()
     client.aclose.assert_awaited_once()
     assert acquired is client
 
@@ -106,6 +113,7 @@ async def test_clickhouse_connects_lazily_and_reconnects(monkeypatch: pytest.Mon
     client = create_autospec(AsyncClient, instance=True)
     factory = AsyncMock(side_effect=[ConnectionError("down"), client])
     monkeypatch.setattr("app.infra.storage.clickhouse.clickhouse_connect.get_async_client", factory)
+
     handle = await clickhouse.create_handle(ClickHouseSettings(host="localhost"))
     await handle.close()
     factory.assert_not_awaited()
@@ -114,8 +122,10 @@ async def test_clickhouse_connects_lazily_and_reconnects(monkeypatch: pytest.Mon
         await handle.check()
     await handle.check()
     acquired = await handle.acquire()
+
     assert factory.await_count == 2
     client.command.assert_awaited_once_with("SELECT 1")
     await handle.close()
+
     client.close.assert_awaited_once()
     assert acquired is client

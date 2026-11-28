@@ -13,7 +13,9 @@ pytestmark = [pytest.mark.integration, pytest.mark.enable_socket, pytest.mark.re
 
 
 async def test_redis_fsm_persists_data_and_expires_it(
-    settings: Settings, bot: Bot, redis_dsn: str
+    settings: Settings,
+    bot: Bot,
+    redis_dsn: str,
 ) -> None:
     configured = settings.model_copy(
         update={"redis": RedisSettings(dsn=SecretStr(redis_dsn), fsm_ttl_seconds=1)}
@@ -25,10 +27,12 @@ async def test_redis_fsm_persists_data_and_expires_it(
         storage = application.dispatcher.fsm.storage
         assert isinstance(storage, RedisStorage)
         key = StorageKey(bot_id=bot.id, chat_id=42, user_id=42)
+
         await storage.set_state(key, "Survey:language")
         await storage.set_data(key, {"language": "Python"})
         assert await storage.get_state(key) == "Survey:language"
         assert await storage.get_data(key) == {"language": "Python"}
+
         await asyncio.sleep(1.1)
         assert await storage.get_state(key) is None
         assert await storage.get_data(key) == {}
@@ -37,7 +41,9 @@ async def test_redis_fsm_persists_data_and_expires_it(
 
 
 async def test_redis_fsm_serializes_updates_for_one_user(
-    settings: Settings, bot: Bot, redis_dsn: str
+    settings: Settings,
+    bot: Bot,
+    redis_dsn: str,
 ) -> None:
     configured = settings.model_copy(update={"redis": RedisSettings(dsn=SecretStr(redis_dsn))})
     application = create_app(configured, bot)
@@ -58,6 +64,7 @@ async def test_redis_fsm_serializes_updates_for_one_user(
             await attempted.wait()
             await asyncio.sleep(0.05)
             assert not acquired.is_set()
+
         await asyncio.wait_for(contender, timeout=2)
         assert acquired.is_set()
     finally:

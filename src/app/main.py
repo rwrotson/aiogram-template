@@ -49,6 +49,7 @@ class BotApplication:
         self.settings = settings
         self.bot = bot or Bot(settings.bot_token.get_secret_value())
         self.storage = StorageManager(settings.readiness_timeout, settings.readiness_cache_ttl)
+
         fsm_storage: BaseStorage
         events_isolation: BaseEventIsolation | None = None
         if settings.redis is None:
@@ -68,17 +69,23 @@ class BotApplication:
             )
             fsm_storage = redis_fsm_storage
             events_isolation = redis_fsm_storage.create_isolation()
+
         self.update_middleware = UpdateMiddleware()
         self.dispatcher = create_dispatcher(fsm_storage, events_isolation, self.update_middleware)
         self._fsm_closed = False
         self.dispatcher.shutdown.register(self._mark_fsm_closed)
+
         self.container = AppContainer(
-            settings=settings, storage=self.storage, faq=FaqService(MemoryFaqRepository())
+            settings=settings,
+            storage=self.storage,
+            faq=FaqService(MemoryFaqRepository()),
         )
+
         self.http = web.Application()
         self.http.router.add_get("/live", self.live)
         self.http.router.add_get("/ready", self.ready)
         self.http.router.add_get("/metrics", self.metrics)
+
         if settings.update_mode == "webhook":
             if settings.webhook_url is None or settings.webhook_secret is None:
                 raise ValueError("webhook settings are required")
@@ -89,6 +96,7 @@ class BotApplication:
                 secret_token=settings.webhook_secret.get_secret_value(),
                 container=self.container,
             ).register(self.http, path=urlsplit(settings.webhook_url).path)
+
         self._runner: web.AppRunner | None = None
         self._site: web.TCPSite | None = None
         self._supervisor: asyncio.Task[None] | None = None
@@ -103,15 +111,18 @@ class BotApplication:
     async def ready(self, _: web.Request) -> web.Response:
         """Report Telegram setup and dependency availability."""
         dependencies = await self.storage.readiness()
+
         try:
             async with asyncio.timeout(self.settings.readiness_timeout):
                 await self.bot.get_me()
             telegram = "ok"
         except Exception:  # noqa: BLE001 - any probe failure means unavailable
             telegram = "unavailable"
+
         dependencies["telegram"] = telegram
         dependencies["updates"] = "ok" if self._registered else "unavailable"
         healthy = all(value == "ok" for value in dependencies.values())
+
         return web.json_response(
             {"status": "ok" if healthy else "unavailable", "dependencies": dependencies},
             status=200 if healthy else 503,
@@ -190,15 +201,18 @@ class BotApplication:
             await self.storage.open(self.settings)
             if self.settings.update_mode == "webhook":
                 await self.dispatcher.emit_startup(bot=self.bot, container=self.container)
+
             self._runner = web.AppRunner(self.http, shutdown_timeout=3)
             await self._runner.setup()
             site = web.TCPSite(self._runner, self.settings.http_host, self.settings.http_port)
             await site.start()
             self._site = site
+
             self._supervisor = asyncio.create_task(
                 self._serve_updates(),
                 context=contextvars.Context(),
             )
+
             structlog.get_logger().info("application_started", mode=self.settings.update_mode)
         except Exception:
             await self.stop()
@@ -216,7 +230,9 @@ class BotApplication:
             )
             try:
                 done, _ = await asyncio.wait(
-                    {stop_task, supervisor}, timeout=5, return_when=asyncio.FIRST_COMPLETED
+                    {stop_task, supervisor},
+                    timeout=5,
+                    return_when=asyncio.FIRST_COMPLETED,
                 )
                 if stop_task in done:
                     with suppress(RuntimeError):
@@ -247,12 +263,15 @@ class BotApplication:
         cleanup.push_async_callback(self.bot.session.close)
         if self.settings.update_mode == "webhook":
             cleanup.push_async_callback(
-                self.dispatcher.emit_shutdown, bot=self.bot, container=self.container
+                self.dispatcher.emit_shutdown,
+                bot=self.bot,
+                container=self.container,
             )
         else:
             cleanup.push_async_callback(self._close_fsm_if_needed)
         if self._runner is not None:
             cleanup.push_async_callback(self._runner.cleanup)
+
         try:
             try:
                 await self._stop_updates()
@@ -285,6 +304,7 @@ async def run() -> None:
     loop = asyncio.get_running_loop()
     for name in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(name, stopped.set)
+
     await application.start()
     stop_wait = asyncio.create_task(stopped.wait(), context=contextvars.Context())
     try:
@@ -292,7 +312,8 @@ async def run() -> None:
             await stop_wait
         elif application._supervisor is not None:
             done, _ = await asyncio.wait(
-                {stop_wait, application._supervisor}, return_when=asyncio.FIRST_COMPLETED
+                {stop_wait, application._supervisor},
+                return_when=asyncio.FIRST_COMPLETED,
             )
             if application._supervisor in done and not stopped.is_set():
                 application._supervisor.result()

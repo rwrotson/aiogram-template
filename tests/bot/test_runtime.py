@@ -58,7 +58,9 @@ def message_update() -> dict[str, object]:
 
 
 async def test_polling_serves_health_and_stops_cleanly(
-    settings: Settings, bot: Bot, monkeypatch: pytest.MonkeyPatch
+    settings: Settings,
+    bot: Bot,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     settings = settings.model_copy(update={"polling_max_concurrent_updates": 7})
     application = create_app(settings, bot)
@@ -68,8 +70,11 @@ async def test_polling_serves_health_and_stops_cleanly(
         await pending.wait()
 
     monkeypatch.setattr(
-        application.dispatcher, "start_polling", AsyncMock(side_effect=wait_for_stop)
+        application.dispatcher,
+        "start_polling",
+        AsyncMock(side_effect=wait_for_stop),
     )
+
     await application.start()
     try:
         await wait_registered(application)
@@ -93,11 +98,14 @@ async def test_polling_serves_health_and_stops_cleanly(
         assert polling.await_args.kwargs["tasks_concurrency_limit"] == 7
     finally:
         await application.stop()
+
     cast("AsyncMock", bot.session.close).assert_awaited_once()
 
 
 async def test_webhook_requires_secret_and_processes_before_ack(
-    settings: Settings, bot: Bot, monkeypatch: pytest.MonkeyPatch
+    settings: Settings,
+    bot: Bot,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     settings = settings.model_copy(
         update={
@@ -114,6 +122,7 @@ async def test_webhook_requires_secret_and_processes_before_ack(
         assert cast("AsyncMock", bot.session.close).await_count == 0
 
     application.dispatcher.shutdown.register(inspect_shutdown)
+
     await application.start()
     try:
         await wait_registered(application)
@@ -144,11 +153,14 @@ async def test_webhook_requires_secret_and_processes_before_ack(
         assert set_webhook.await_args.kwargs["drop_pending_updates"] is False
     finally:
         await application.stop()
+
     cast("AsyncMock", bot.session.close).assert_awaited_once()
 
 
 async def test_webhook_dispatches_real_updates_and_reports_handler_errors(
-    settings: Settings, bot: Bot, monkeypatch: pytest.MonkeyPatch
+    settings: Settings,
+    bot: Bot,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     configured = settings.model_copy(
         update={
@@ -164,6 +176,7 @@ async def test_webhook_dispatches_real_updates_and_reports_handler_errors(
     update = message_update()
     message = cast("dict[str, object]", update["message"])
     message["text"] = "/faq commands"
+
     await application.start()
     try:
         await wait_registered(application)
@@ -187,7 +200,9 @@ async def test_webhook_dispatches_real_updates_and_reports_handler_errors(
             )
 
             monkeypatch.setattr(
-                application.container.faq, "answer", Mock(side_effect=RuntimeError("broken"))
+                application.container.faq,
+                "answer",
+                Mock(side_effect=RuntimeError("broken")),
             )
             message["text"] = "/faq storage"
             async with session.post(
@@ -202,7 +217,9 @@ async def test_webhook_dispatches_real_updates_and_reports_handler_errors(
 
 
 async def test_webhook_registration_retries_while_http_remains_available(
-    settings: Settings, bot: Bot, monkeypatch: pytest.MonkeyPatch
+    settings: Settings,
+    bot: Bot,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     configured = settings.model_copy(
         update={
@@ -225,6 +242,7 @@ async def test_webhook_registration_retries_while_http_remains_available(
     cast("AsyncMock", bot.set_webhook).side_effect = register
     monkeypatch.setattr(main, "RETRY_DELAY", 0.1)
     application = create_app(configured, bot)
+
     await application.start()
     try:
         await asyncio.wait_for(first_attempt.wait(), timeout=2)
@@ -247,6 +265,7 @@ async def test_unavailable_telegram_marks_ready_unavailable(settings: Settings, 
     cast("AsyncMock", bot.get_me).side_effect = ConnectionError("down")
     cast("AsyncMock", bot.set_my_commands).side_effect = ConnectionError("down")
     application = create_app(settings, bot)
+
     await application.start()
     try:
         async with (
@@ -261,6 +280,7 @@ async def test_unavailable_telegram_marks_ready_unavailable(settings: Settings, 
 
 def test_fsm_uses_memory_without_redis(settings: Settings, bot: Bot) -> None:
     fsm = create_app(settings, bot).dispatcher.fsm
+
     assert isinstance(fsm.storage, MemoryStorage)
     assert isinstance(fsm.events_isolation, SimpleEventIsolation)
 
@@ -279,6 +299,7 @@ def test_fsm_uses_redis_when_configured(settings: Settings, bot: Bot) -> None:
         }
     )
     fsm = create_app(configured, bot).dispatcher.fsm
+
     assert isinstance(fsm.storage, RedisStorage)
     assert isinstance(fsm.events_isolation, RedisEventIsolation)
     assert fsm.events_isolation.redis is fsm.storage.redis
@@ -291,7 +312,9 @@ def test_fsm_uses_redis_when_configured(settings: Settings, bot: Bot) -> None:
 
 
 async def test_polling_owns_dispatcher_lifecycle_once(
-    settings: Settings, bot: Bot, monkeypatch: pytest.MonkeyPatch
+    settings: Settings,
+    bot: Bot,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     application = create_app(settings, bot)
     started = asyncio.Event()
@@ -311,17 +334,21 @@ async def test_polling_owns_dispatcher_lifecycle_once(
         await asyncio.Event().wait()
 
     monkeypatch.setattr(application.dispatcher, "_polling", wait_for_stop)
+
     await application.start()
     try:
         await asyncio.wait_for(started.wait(), timeout=2)
         assert events == ["startup"]
     finally:
         await application.stop()
+
     assert events == ["startup", "shutdown"]
 
 
 async def test_registration_retries_without_stopping_http(
-    settings: Settings, bot: Bot, monkeypatch: pytest.MonkeyPatch
+    settings: Settings,
+    bot: Bot,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     cast("AsyncMock", bot.set_my_commands).side_effect = [ConnectionError("down"), True]
     monkeypatch.setattr(main, "RETRY_DELAY", 0.01)
@@ -332,6 +359,7 @@ async def test_registration_retries_without_stopping_http(
         await pending.wait()
 
     monkeypatch.setattr(application.dispatcher, "start_polling", wait_for_stop)
+
     await application.start()
     try:
         await wait_registered(application)
@@ -342,7 +370,10 @@ async def test_registration_retries_without_stopping_http(
 
 
 async def test_ready_reports_configured_storage_outage(
-    settings: Settings, bot: Bot, fake_backends: AsyncMock, monkeypatch: pytest.MonkeyPatch
+    settings: Settings,
+    bot: Bot,
+    fake_backends: AsyncMock,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     async def unavailable() -> None:
         raise ConnectionError("down")
@@ -358,6 +389,7 @@ async def test_ready_reports_configured_storage_outage(
         await pending.wait()
 
     monkeypatch.setattr(application.dispatcher, "start_polling", wait_for_stop)
+
     await application.start()
     try:
         await wait_registered(application)
@@ -372,30 +404,40 @@ async def test_ready_reports_configured_storage_outage(
 
 
 async def test_failed_startup_closes_bot_and_storage(
-    settings: Settings, bot: Bot, monkeypatch: pytest.MonkeyPatch
+    settings: Settings,
+    bot: Bot,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     application = create_app(settings, bot)
     monkeypatch.setattr(application.storage, "open", AsyncMock(side_effect=RuntimeError("broken")))
+
     with pytest.raises(RuntimeError, match="broken"):
         await application.start()
+
     cast("AsyncMock", bot.session.close).assert_awaited_once()
     assert application.storage.handles == {}
 
 
 async def test_stop_before_polling_closes_fsm(
-    settings: Settings, bot: Bot, monkeypatch: pytest.MonkeyPatch
+    settings: Settings,
+    bot: Bot,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     application = create_app(settings, bot)
     close_fsm = AsyncMock()
     monkeypatch.setattr(application.dispatcher.fsm, "close", close_fsm)
     cast("AsyncMock", bot.delete_webhook).side_effect = ConnectionError("down")
+
     await application.start()
     await application.stop()
+
     close_fsm.assert_awaited_once()
 
 
 async def test_polling_failure_still_closes_resources(
-    settings: Settings, bot: Bot, monkeypatch: pytest.MonkeyPatch
+    settings: Settings,
+    bot: Bot,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     application = create_app(settings, bot)
     monkeypatch.setattr(
@@ -403,18 +445,24 @@ async def test_polling_failure_still_closes_resources(
         "start_polling",
         AsyncMock(side_effect=RuntimeError("polling failed")),
     )
+
     await application.start()
     supervisor = application._supervisor
     assert supervisor is not None
+
     with pytest.raises(RuntimeError, match="polling failed"):
         await supervisor
+
     await application.stop()
+
     cast("AsyncMock", bot.session.close).assert_awaited_once()
     assert application.storage.handles == {}
 
 
 async def test_polling_startup_failure_closes_fsm(
-    settings: Settings, bot: Bot, monkeypatch: pytest.MonkeyPatch
+    settings: Settings,
+    bot: Bot,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     application = create_app(settings, bot)
     close_fsm = AsyncMock()
@@ -424,18 +472,24 @@ async def test_polling_startup_failure_closes_fsm(
         raise RuntimeError("startup failed")
 
     application.dispatcher.startup.register(fail_startup)
+
     await application.start()
     supervisor = application._supervisor
     assert supervisor is not None
+
     with pytest.raises(RuntimeError, match="startup failed"):
         await supervisor
+
     await application.stop()
+
     close_fsm.assert_awaited_once()
     cast("AsyncMock", bot.session.close).assert_awaited_once()
 
 
 async def test_polling_shutdown_failure_does_not_delay_cleanup(
-    settings: Settings, bot: Bot, monkeypatch: pytest.MonkeyPatch
+    settings: Settings,
+    bot: Bot,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     application = create_app(settings, bot)
     started = asyncio.Event()
@@ -452,15 +506,19 @@ async def test_polling_shutdown_failure_does_not_delay_cleanup(
     application.dispatcher.startup.register(record_startup)
     application.dispatcher.shutdown.register(fail_shutdown)
     monkeypatch.setattr(application.dispatcher, "_polling", wait_for_stop)
+
     await application.start()
     await asyncio.wait_for(started.wait(), timeout=2)
     await asyncio.wait_for(application.stop(), timeout=2)
+
     cast("AsyncMock", bot.session.close).assert_awaited_once()
     assert application.storage.handles == {}
 
 
 async def test_shutdown_waits_for_active_update_before_closing_bot(
-    settings: Settings, bot: Bot, monkeypatch: pytest.MonkeyPatch
+    settings: Settings,
+    bot: Bot,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     application = create_app(settings, bot)
     entered = asyncio.Event()
@@ -474,6 +532,7 @@ async def test_shutdown_waits_for_active_update_before_closing_bot(
         await release.wait()
 
     monkeypatch.setattr(application.dispatcher, "start_polling", wait_for_stop)
+
     await application.start()
     await wait_registered(application)
     event = Update.model_validate(message_update())
@@ -481,16 +540,21 @@ async def test_shutdown_waits_for_active_update_before_closing_bot(
     await entered.wait()
     stop_task = asyncio.create_task(application.stop())
     await wait_until(lambda: application._supervisor is None)
+
     assert not stop_task.done()
     cast("AsyncMock", bot.session.close).assert_not_awaited()
+
     release.set()
     await asyncio.wait_for(stop_task, timeout=2)
     await update_task
+
     cast("AsyncMock", bot.session.close).assert_awaited_once()
 
 
 async def test_shutdown_cancels_update_after_grace_period(
-    settings: Settings, bot: Bot, monkeypatch: pytest.MonkeyPatch
+    settings: Settings,
+    bot: Bot,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     configured = settings.model_copy(update={"shutdown_grace_seconds": 0.01})
     application = create_app(configured, bot)
@@ -504,20 +568,25 @@ async def test_shutdown_cancels_update_after_grace_period(
         await asyncio.Event().wait()
 
     monkeypatch.setattr(application.dispatcher, "start_polling", wait_for_stop)
+
     await application.start()
     await wait_registered(application)
     event = Update.model_validate(message_update())
     update_task = asyncio.create_task(application.update_middleware(handle, event, {}))
     await entered.wait()
     await asyncio.wait_for(application.stop(), timeout=2)
+
     with pytest.raises(asyncio.CancelledError):
         await update_task
+
     assert application.update_middleware.active_count == 0
     cast("AsyncMock", bot.session.close).assert_awaited_once()
 
 
 async def test_webhook_shutdown_waits_for_active_request(
-    settings: Settings, bot: Bot, monkeypatch: pytest.MonkeyPatch
+    settings: Settings,
+    bot: Bot,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     configured = settings.model_copy(
         update={
@@ -538,6 +607,7 @@ async def test_webhook_shutdown_waits_for_active_request(
         await application.update_middleware(handle, update, {})
 
     monkeypatch.setattr(application.dispatcher, "feed_update", feed_update)
+
     await application.start()
     await wait_registered(application)
     url = f"http://127.0.0.1:{configured.http_port}/telegram/hook"
@@ -553,16 +623,19 @@ async def test_webhook_shutdown_waits_for_active_request(
         stop_task = asyncio.create_task(application.stop())
         await wait_until(lambda: application._site is None)
         cast("AsyncMock", bot.session.close).assert_not_awaited()
+
         release.set()
         response = await asyncio.wait_for(request_task, timeout=2)
         assert response.status == 200
         response.release()
         await asyncio.wait_for(stop_task, timeout=2)
+
     cast("AsyncMock", bot.session.close).assert_awaited_once()
 
 
 async def test_webhook_shutdown_hook_failure_still_closes_resources(
-    settings: Settings, bot: Bot
+    settings: Settings,
+    bot: Bot,
 ) -> None:
     configured = settings.model_copy(
         update={
@@ -577,10 +650,13 @@ async def test_webhook_shutdown_hook_failure_still_closes_resources(
         raise RuntimeError("shutdown failed")
 
     application.dispatcher.shutdown.register(fail_shutdown)
+
     await application.start()
     await wait_registered(application)
+
     with pytest.raises(RuntimeError, match="shutdown failed"):
         await application.stop()
+
     cast("AsyncMock", bot.session.close).assert_awaited_once()
     assert application.storage.handles == {}
 
@@ -619,15 +695,15 @@ async def test_sequential_applications_use_their_own_tracers(
             await application.update_middleware(handle, event, {})
         finally:
             await application.stop()
-
-    assert trace.get_tracer_provider() is global_provider
     traces = [exporter.get_finished_spans()[0].context.trace_id for exporter in exporters]
-    assert len(traces) == 2
-    assert traces[0] != traces[1]
     logged = [
         json.loads(line) for line in capsys.readouterr().out.splitlines() if line.startswith("{")
     ]
     update_logs = [entry for entry in logged if entry.get("event") == "traced_update"]
+
+    assert trace.get_tracer_provider() is global_provider
+    assert len(traces) == 2
+    assert traces[0] != traces[1]
     assert [entry["trace_id"] for entry in update_logs] == [
         format(value, "032x") for value in traces
     ]
@@ -635,7 +711,9 @@ async def test_sequential_applications_use_their_own_tracers(
 
 async def test_run_starts_and_stops_on_signal(monkeypatch: pytest.MonkeyPatch) -> None:
     lifecycle = SimpleNamespace(
-        settings=SimpleNamespace(update_mode="webhook"), start=AsyncMock(), stop=AsyncMock()
+        settings=SimpleNamespace(update_mode="webhook"),
+        start=AsyncMock(),
+        stop=AsyncMock(),
     )
     monkeypatch.setattr(main, "create_app", lambda: lifecycle)
     loop = asyncio.get_running_loop()
@@ -644,7 +722,9 @@ async def test_run_starts_and_stops_on_signal(monkeypatch: pytest.MonkeyPatch) -
         callback()
 
     monkeypatch.setattr(loop, "add_signal_handler", signal_immediately)
+
     await main.run()
+
     lifecycle.start.assert_awaited_once()
     lifecycle.stop.assert_awaited_once()
 
@@ -663,6 +743,8 @@ async def test_run_exits_when_polling_stops_unexpectedly(monkeypatch: pytest.Mon
     lifecycle.start.side_effect = start
     monkeypatch.setattr(main, "create_app", lambda: lifecycle)
     monkeypatch.setattr(asyncio.get_running_loop(), "add_signal_handler", lambda *_args: None)
+
     with pytest.raises(RuntimeError, match="polling stopped unexpectedly"):
         await main.run()
+
     lifecycle.stop.assert_awaited_once()

@@ -31,8 +31,10 @@ async def test_manager_opens_probes_and_closes(fake_backends: AsyncMock) -> None
     fake_backends.assert_awaited_once_with(REDIS_SETTINGS)
     assert await manager.get(REDIS) is client
     assert await manager.readiness() == {"redis": "ok"}
+
     check.side_effect = ConnectionError("down")
     assert await manager.readiness() == {"redis": "unavailable"}
+
     await manager.close()
     close.assert_awaited_once()
     assert manager.handles == {}
@@ -40,6 +42,7 @@ async def test_manager_opens_probes_and_closes(fake_backends: AsyncMock) -> None
 
 async def test_get_reports_missing_and_unreachable_backends() -> None:
     manager = StorageManager()
+
     with pytest.raises(StorageNotConfiguredError, match="redis is not configured"):
         await manager.get(REDIS)
 
@@ -53,6 +56,7 @@ async def test_readiness_is_cached_and_bounded() -> None:
     check = AsyncMock()
     manager = StorageManager(readiness_cache_ttl=60)
     manager.handles["redis"] = make_handle(object(), check)
+
     assert await manager.readiness() == {"redis": "ok"}
     assert await manager.readiness() == {"redis": "ok"}
     check.assert_awaited_once()
@@ -62,6 +66,7 @@ async def test_readiness_is_cached_and_bounded() -> None:
 
     slow = StorageManager(readiness_timeout=0.01)
     slow.handles["redis"] = make_handle(object(), hang)
+
     assert await slow.readiness() == {"redis": "unavailable"}
 
 
@@ -70,6 +75,7 @@ async def test_missing_extra_has_actionable_error(monkeypatch: pytest.MonkeyPatc
         raise ModuleNotFoundError("No module named 'redis'", name="redis")
 
     monkeypatch.setattr(base, "import_module", missing)
+
     with pytest.raises(RuntimeError, match="Install the 'redis' extra"):
         await StorageManager().open(Settings(bot_token=SecretStr("42:TEST"), redis=REDIS_SETTINGS))
 
@@ -78,6 +84,7 @@ async def test_missing_driver_during_client_creation_has_actionable_error(
     fake_backends: AsyncMock,
 ) -> None:
     fake_backends.side_effect = ModuleNotFoundError("No module named 'psycopg'", name="psycopg")
+
     with pytest.raises(RuntimeError, match="Install the 'postgres-raw' extra"):
         await StorageManager().open(
             Settings(bot_token=SecretStr("42:TEST"), postgres_raw=RAW_SETTINGS)
@@ -91,6 +98,7 @@ async def test_adapter_import_error_is_not_reported_as_missing_extra(
         raise ModuleNotFoundError("No module named 'internal'", name="internal")
 
     monkeypatch.setattr(base, "import_module", broken)
+
     with pytest.raises(ModuleNotFoundError, match="internal"):
         await StorageManager().open(Settings(bot_token=SecretStr("42:TEST"), redis=REDIS_SETTINGS))
 
@@ -103,7 +111,9 @@ async def test_partial_startup_closes_created_clients(fake_backends: AsyncMock) 
     with pytest.raises(RuntimeError, match="create failed"):
         await manager.open(
             Settings(
-                bot_token=SecretStr("42:TEST"), postgres_raw=RAW_SETTINGS, redis=REDIS_SETTINGS
+                bot_token=SecretStr("42:TEST"),
+                postgres_raw=RAW_SETTINGS,
+                redis=REDIS_SETTINGS,
             )
         )
 

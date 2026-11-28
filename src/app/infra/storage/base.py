@@ -83,13 +83,22 @@ POSTGRES_ORM: BackendSpec[async_sessionmaker[AsyncSession]] = BackendSpec(
     frozenset({"sqlalchemy", "psycopg"}),
 )
 CLICKHOUSE: BackendSpec[AsyncClient] = BackendSpec(
-    "clickhouse", "clickhouse", "app.infra.storage.clickhouse", frozenset({"clickhouse_connect"})
+    "clickhouse",
+    "clickhouse",
+    "app.infra.storage.clickhouse",
+    frozenset({"clickhouse_connect"}),
 )
 MONGODB: BackendSpec[AsyncMongoClient[dict[str, object]]] = BackendSpec(
-    "mongodb", "mongodb", "app.infra.storage.mongodb", frozenset({"pymongo"})
+    "mongodb",
+    "mongodb",
+    "app.infra.storage.mongodb",
+    frozenset({"pymongo"}),
 )
 REDIS: BackendSpec[Redis] = BackendSpec(
-    "redis", "redis", "app.infra.storage.redis", frozenset({"redis"})
+    "redis",
+    "redis",
+    "app.infra.storage.redis",
+    frozenset({"redis"}),
 )
 
 BACKENDS: tuple[BackendSpec[object], ...] = (POSTGRES_RAW, POSTGRES_ORM, CLICKHOUSE, MONGODB, REDIS)

@@ -10,13 +10,18 @@ UPDATES = Counter(
     ["update_type", "outcome"],
 )
 UPDATE_DURATION = Histogram(
-    "app_telegram_update_duration_seconds", "Telegram update handling duration", ["update_type"]
+    "app_telegram_update_duration_seconds",
+    "Telegram update handling duration",
+    ["update_type"],
 )
 UPDATE_IN_PROGRESS = Gauge(
-    "app_telegram_updates_in_progress", "Telegram updates currently being handled"
+    "app_telegram_updates_in_progress",
+    "Telegram updates currently being handled",
 )
 STORAGE_AVAILABLE = Gauge(
-    "app_storage_available", "Availability of a configured storage backend", ["backend"]
+    "app_storage_available",
+    "Availability of a configured storage backend",
+    ["backend"],
 )
 DATABASE_OPERATIONS = Counter(
     "app_database_operations_total",

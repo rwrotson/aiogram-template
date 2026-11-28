@@ -13,6 +13,7 @@ async def test_postgres_orm_connects_and_reports_ready(postgres_dsn: str) -> Non
         postgres_orm=PostgresOrmSettings(dsn=SecretStr(postgres_dsn)),
     )
     manager = StorageManager()
+
     await manager.open(settings)
     try:
         assert await manager.readiness() == {"postgres_orm": "ok"}

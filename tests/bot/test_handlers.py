@@ -51,6 +51,7 @@ async def test_non_text_answer_reprompts(monkeypatch: pytest.MonkeyPatch, bot: B
     send = AsyncMock(return_value=None)
     monkeypatch.setattr(Bot, "__call__", send)
     dispatcher = create_dispatcher(MemoryStorage())
+
     await dispatcher.feed_raw_update(bot, update(1, "/survey"))
     await dispatcher.feed_raw_update(
         bot,
@@ -73,20 +74,27 @@ async def test_non_text_answer_reprompts(monkeypatch: pytest.MonkeyPatch, bot: B
             },
         },
     )
+
     assert send.await_args_list[-1].args[0].text == "Please send a text answer or /cancel."
 
 
 async def test_faq_topics_and_unknown_topic(
-    monkeypatch: pytest.MonkeyPatch, bot: Bot, settings: Settings
+    monkeypatch: pytest.MonkeyPatch,
+    bot: Bot,
+    settings: Settings,
 ) -> None:
     send = AsyncMock(return_value=None)
     monkeypatch.setattr(Bot, "__call__", send)
     application = create_app(settings, bot)
+
     for index, command in enumerate(
-        ("/faq", "/faq commands", "/faq storage", "/faq missing"), start=1
+        ("/faq", "/faq commands", "/faq storage", "/faq missing"),
+        start=1,
     ):
         await application.dispatcher.feed_raw_update(
-            bot, update(index, command), container=application.container
+            bot,
+            update(index, command),
+            container=application.container,
         )
 
     messages = [call.args[0].text for call in send.await_args_list]
@@ -102,8 +110,10 @@ async def test_empty_answers_repeat_current_question() -> None:
     message = AsyncMock()
     message.text = "   "
     state = AsyncMock()
+
     await language(cast("Message", message), state)
     await framework(cast("Message", message), state)
+
     assert message.answer.await_count == 2
     state.set_state.assert_not_awaited()
     state.clear.assert_not_awaited()
@@ -112,5 +122,7 @@ async def test_empty_answers_repeat_current_question() -> None:
 async def test_start_ignores_message_without_user() -> None:
     message = AsyncMock()
     message.from_user = None
+
     await start(cast("Message", message))
+
     message.answer.assert_not_awaited()

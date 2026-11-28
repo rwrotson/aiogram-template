@@ -24,10 +24,12 @@ from app.core.telemetry import configure_tracing
 def test_json_logs_include_trace_context(capsys: pytest.CaptureFixture[str]) -> None:
     configure_logging("INFO", "json")
     tracer = TracerProvider().get_tracer("test")
+
     with tracer.start_as_current_span("work") as span:
         structlog.get_logger("test").info("inside_span", answer=42)
     structlog.get_logger("test").info("outside_span")
     inside, outside = (json.loads(line) for line in capsys.readouterr().out.splitlines())
+
     assert inside["trace_id"] == format(span.get_span_context().trace_id, "032x")
     assert inside["answer"] == 42
     assert "trace_id" not in outside
@@ -41,8 +43,10 @@ def test_console_logs_are_readable(capsys: pytest.CaptureFixture[str]) -> None:
 
 def test_tracing_is_optional() -> None:
     global_provider = trace.get_tracer_provider()
+
     assert configure_tracing(None, "test") is None
     provider = configure_tracing("http://127.0.0.1:4318/v1/traces", "test")
+
     assert isinstance(provider, TracerProvider)
     assert provider.resource.attributes["service.name"] == "test"
     assert trace.get_tracer_provider() is global_provider
@@ -54,11 +58,13 @@ async def test_database_operation_metrics_record_success_and_failure() -> None:
     failed = DATABASE_OPERATIONS.labels(backend="test", operation="read", result="error")
     before_success = success._value.get()
     before_failed = failed._value.get()
+
     async with observe_database_operation("test", "read"):
         pass
     with pytest.raises(ValueError, match="failure"):
         async with observe_database_operation("test", "read"):
             raise ValueError("failure")
+
     assert success._value.get() == before_success + 1
     assert failed._value.get() == before_failed + 1
 
@@ -84,6 +90,7 @@ async def test_update_middleware_records_failure_and_releases_context() -> None:
 
     with pytest.raises(ValueError, match="handler failed"):
         await UpdateMiddleware()(fail, event, {})
+
     assert counter._value.get() == before_count + 1
     assert UPDATE_IN_PROGRESS._value.get() == before_active
 
@@ -103,7 +110,7 @@ async def test_fresh_context_task_does_not_inherit_update_id(
         await asyncio.create_task(work("isolated"), context=contextvars.Context())
     finally:
         structlog.contextvars.clear_contextvars()
-
     inherited, isolated = (json.loads(line) for line in capsys.readouterr().out.splitlines())
+
     assert inherited["update_id"] == 1
     assert "update_id" not in isolated
