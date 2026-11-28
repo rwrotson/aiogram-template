@@ -5,3 +5,4 @@
 - Do not edit generated pages (configuration, API reference); edit `Settings` field descriptions and source docstrings instead.
 - The generator scripts are type-checked with the rest of the project.
 - Update README, `.env.example`, and the docs when changing public settings, commands, storage extras, or deployment instructions.
+- When renaming or removing a module, setting, or task, search `AGENTS.md` and `docs/agents/` for it and update the references.
