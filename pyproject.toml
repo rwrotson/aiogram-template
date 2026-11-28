@@ -205,8 +205,21 @@ select = [
 ]
 "docs/**" = ["T20"]
 
+# Banned-API ownership: only these places may use the APIs banned below.
+"src/app/config/**" = ["TID251"]
+"src/app/core/logging.py" = ["TID251"]
+"tests/**/*.py" = ["TID251"]
+
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"os.environ".msg = "Read configuration through app.config.Settings."
+"os.getenv".msg = "Read configuration through app.config.Settings."
+"os.putenv".msg = "Read configuration through app.config.Settings."
+"logging.basicConfig".msg = "Configure logging in app.core.logging."
+"structlog.configure".msg = "Configure logging in app.core.logging."
+"logging.getLogger".msg = "Use structlog.get_logger()."
 
 [tool.ruff.lint.mccabe]
 max-complexity = 8

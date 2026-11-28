@@ -5,3 +5,4 @@
 - aiohttp provides `/live`, `/ready`, and `/metrics` in both update modes. `/live` checks only the local process. `/ready` checks Telegram, update registration, and configured storage. An external outage must affect `/ready`, never `/live` or startup.
 - Keep metric registries and tracer providers scoped to the application so tests can run in any order.
 - See [observability](../../../observability.md) for the user-facing description.
+- Ruff `banned-api` allows `logging.basicConfig`, `structlog.configure` and `logging.getLogger` only in `logging.py`; elsewhere use `structlog.get_logger()`.

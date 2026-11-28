@@ -1,5 +1,4 @@
 import asyncio
-import logging
 import time
 from collections.abc import Awaitable, Callable
 from contextlib import AsyncExitStack
@@ -7,10 +6,12 @@ from dataclasses import dataclass
 from importlib import import_module
 from typing import TYPE_CHECKING, cast
 
+import structlog
+
 from app.config import Settings
 from app.core.metrics import STORAGE_AVAILABLE
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 if TYPE_CHECKING:
     from clickhouse_connect.driver import AsyncClient
@@ -121,7 +122,7 @@ class StorageManager:
         try:
             await handle.close()
         except Exception:
-            logger.exception("Failed to close storage backend %s", name)
+            logger.exception("storage_close_failed", backend=name)
 
     async def open(self, settings: Settings) -> None:
         """Create configured clients. Constructors do not require live servers."""
