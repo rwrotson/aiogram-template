@@ -85,6 +85,8 @@ constraint-dependencies = [
 [tool.uv.build-backend]
 module-name = "app"
 module-root = "src"
+source-exclude = ["**/.DS_Store"]
+wheel-exclude = ["**/.DS_Store"]
 
 
 # PYTEST -----------------------------------------------------------------------

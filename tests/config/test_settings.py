@@ -69,3 +69,7 @@ def test_env_example_documents_every_setting() -> None:
 
 def test_no_app_variables_leak_into_tests() -> None:
     assert not [name for name in os.environ if name.startswith("APP_")]
+
+
+def test_every_setting_has_a_description() -> None:
+    assert [name for name, field in env_fields() if not field.description] == []
