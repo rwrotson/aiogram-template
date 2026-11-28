@@ -50,13 +50,13 @@ The `/faq` example passes a topic from the Telegram handler to a service, which 
 
 ## Errors
 
-| Error | Base classes | Raised when |
-| --- | --- | --- |
-| `ServiceError` | `Exception` | Base for every expected use-case failure |
-| `NotFoundError` | `ServiceError` | A requested item does not exist |
-| `ConflictError` | `ServiceError` | The request conflicts with existing state |
+| Error | Base classes | Raised when | Reply |
+| --- | --- | --- | --- |
+| `ServiceError` | `Exception` | Base for every expected use-case failure | Generic retry message |
+| `NotFoundError` | `ServiceError` | A requested item does not exist | Unknown topic with the available ones |
+| `ConflictError` | `ServiceError` | The request conflicts with existing state | Conflict message |
 
-Handlers catch `ServiceError` subclasses and reply to the user; unexpected exceptions are logged with update context. Add a subclass for each new kind of expected failure.
+Handlers catch `ServiceError` and reply with `reply_for_error()` from `app/bot/replies.py`, which resolves the nearest base class in the `ERROR_REPLY` table and falls back to the `ServiceError` entry. Unexpected exceptions get no reply; they are logged with update context. Add a subclass and an `ERROR_REPLY` entry for each new kind of expected failure.
 
 ## Adding functionality
 

@@ -4,8 +4,9 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import Message
 
+from app.bot.replies import reply_for_error
 from app.container import AppContainer
-from app.services.errors import NotFoundError
+from app.services.errors import ServiceError
 from app.services.greeting import greeting_message
 
 
@@ -39,8 +40,8 @@ async def faq(message: Message, command: CommandObject, container: AppContainer)
         return
     try:
         answer = container.faq.answer(topic)
-    except NotFoundError:
-        await message.answer("Unknown topic. Choose /faq commands or /faq storage.")
+    except ServiceError as exc:
+        await message.answer(reply_for_error(exc))
         return
     await message.answer(answer)
 

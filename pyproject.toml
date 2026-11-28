@@ -262,7 +262,7 @@ layers = ["app.main", "app.bot", "app.container", "app.infra", "app.services | a
 name = "Bot modules layers"
 type = "layers"
 containers = ["app.bot"]
-layers = ["factory", "handlers | middleware"]
+layers = ["factory", "handlers | middleware", "replies"]
 exhaustive = true
 
 [[tool.importlinter.contracts]]
