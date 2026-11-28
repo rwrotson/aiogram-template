@@ -23,7 +23,7 @@ docker compose ps
 curl http://127.0.0.1:8000/ready
 ```
 
-The operational port is published only on `127.0.0.1:${APP_PORT:-8000}` of the host. The container healthcheck uses `/live`; use `/ready` to inspect Telegram and storage availability. Logs go to stdout with rotation. The container runs as a non-root user with a read-only root filesystem and a `/tmp` tmpfs.
+The operational port is published only on `127.0.0.1:${APP_PORT:-8000}` of the host. The container healthcheck uses `/live`, which stays healthy while Telegram is unreachable (CI smoke-tests this with a dummy token); use `/ready` to inspect Telegram and storage availability. Logs go to stdout with rotation. The container runs as a non-root user with a read-only root filesystem and a `/tmp` tmpfs.
 
 Polling handles at most `APP_POLLING_MAX_CONCURRENT_UPDATES` updates at once (100 by default). On shutdown, the bot gives active handlers `APP_SHUTDOWN_GRACE_SECONDS` (15 seconds by default) to finish, then cancels them before closing their dependencies. Keep this interval below Compose's 30-second `stop_grace_period`.
 

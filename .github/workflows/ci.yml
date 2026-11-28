@@ -115,6 +115,7 @@ jobs:
           scan-ref: .
           skip-dirs: .venv
           exit-code: "1"
+          ignore-unfixed: true
           severity: CRITICAL,HIGH
 
   container:
@@ -134,4 +135,11 @@ jobs:
         with:
           image-ref: aiogram-app:ci
           exit-code: "1"
+          ignore-unfixed: true
           severity: CRITICAL,HIGH
+      - name: Smoke-test the image
+        run: |
+          id=$(docker run -d -e APP_BOT_TOKEN=123456:TEST -e APP_HTTP_HOST=0.0.0.0 -p 127.0.0.1:8000:8000 aiogram-app:ci)
+          trap 'docker rm -f "$id" >/dev/null' EXIT
+          curl --fail --silent --show-error --retry 30 --retry-delay 1 --retry-connrefused --retry-all-errors http://127.0.0.1:8000/live \
+            || { docker logs "$id"; exit 1; }

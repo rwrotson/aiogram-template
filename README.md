@@ -184,8 +184,8 @@ See [architecture](docs/architecture.md).
 | `test` | parallel tests in random order, 95% coverage enforced |
 | `lowest` | tests against the lowest allowed direct dependencies, with all extras |
 | `integration-postgres`, `integration-redis` | `poe test-live` against a service container |
-| `build` | package build, `properdocs build --strict`, pip-audit, trivy filesystem scan (CRITICAL/HIGH) |
-| `container` | production image build and trivy image scan (CRITICAL/HIGH) |
+| `build` | package build, `properdocs build --strict`, pip-audit, trivy filesystem scan (CRITICAL/HIGH, fixed only) |
+| `container` | production image build, a smoke test that `/live` answers with a dummy token, and trivy image scan (CRITICAL/HIGH, fixed only) |
 
 Dependabot opens PRs for uv dependencies, Docker, Docker Compose, GitHub Actions, and pre-commit hooks.
 
